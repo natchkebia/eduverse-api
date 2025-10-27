@@ -17,8 +17,8 @@ export class AuthService {
     email: string,
     password: string,
     name: string,
-    surname: string,
-    phone: string,
+    surname?: string,
+    phone?: string,
   ) {
     // შეამოწმე არსებობს თუ არა უკვე მომხმარებელი ელფოსტით ან ტელეფონით
     const existingUser = await this.prisma.user.findFirst({
@@ -28,7 +28,7 @@ export class AuthService {
     });
     if (existingUser) {
       throw new ConflictException(
-        'ამ ელფოსტით ან ტელეფონის ნომრით მომხმარებელი უკვე არსებობს!',
+        'ამ ელფოსტით ან ნომრით მომხმარებელი უკვე არსებობს!',
       );
     }
 
@@ -41,15 +41,15 @@ export class AuthService {
         email,
         password: hashedPassword,
         name,
-        surname,
-        phone,
-        role: Role.STUDENT,
+        surname: surname || undefined,
+        phone: phone || undefined,
+        role: Role.STUDENT, // ✅ default როლი
       },
     });
 
-    // ტოკენის შექმნა
+    // JWT ტოკენის გენერაცია
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user.id, email: user.email, role: user.role }, // ✅ userId უნდა დაემთხვეს req.user.userId-ს
       process.env.JWT_SECRET || 'secret-key',
       { expiresIn: '7d' },
     );
@@ -71,9 +71,9 @@ export class AuthService {
       throw new UnauthorizedException('პაროლი არასწორია');
     }
 
-    // ტოკენის გენერაცია
+    // JWT ტოკენის გენერაცია
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user.id, email: user.email, role: user.role }, // 👈 იგივე userId
       process.env.JWT_SECRET || 'secret-key',
       { expiresIn: '7d' },
     );

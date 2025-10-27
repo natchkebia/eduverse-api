@@ -1,14 +1,14 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private usersService: UsersService) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getProfile(@Req() req) {
-    return this.usersService.getMe(req.user.userId);
+  async getMe(@Req() req) {
+    return this.usersService.getMe(req.user.userId); // ✅ userId მოდის ტოკენიდან
   }
 }
