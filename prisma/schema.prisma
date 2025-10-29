@@ -7,22 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model User {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model prisma_migrations {
+// @@map("_prisma_migrations")
+// }
+
 enum Role {
   STUDENT
   INSTRUCTOR
   ADMIN
 }
-
-model User {
-  id        String   @id @default(uuid()) // 👈 აქ uuid()
-  email     String   @unique
-  password  String
-  name      String
-  surname   String?
-  phone     String?  @unique
-  role      Role     @default(STUDENT)
-  createdAt DateTime @default(now())
-}
-
-
-
