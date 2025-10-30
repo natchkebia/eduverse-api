@@ -55,11 +55,9 @@ async function main() {
 
   console.log('✅ Courses updated/added successfully');
 }
-//test 
 
 main()
   .catch((e) => console.error(e))
   .finally(() => prisma.$disconnect());
 
-  // 🟢 რეგისტრაცია
 
