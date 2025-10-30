@@ -35,18 +35,34 @@ model User {
 
 model Course {
   id               Int      @id @default(autoincrement())
-  title            String
   slug             String   @unique
-  description      String
-  originalPrice    String
-  discountedPrice  String
+  originalPrice    Int
+  discountedPrice  Int
   discount         String
   imageUrl         String
-  altText          String
-  isOnline         Boolean
-  isGeorgia        Boolean
-  button           String
+  isOnline         Boolean  @default(false)
+  isGeorgia        Boolean  @default(true)
+
+  titleKa          String
+  titleEn          String
+  descriptionKa    String
+  descriptionEn    String
+  altTextKa        String
+  altTextEn        String
+  buttonKa         String
+  buttonEn         String
+  formatKa         String
+  formatEn         String
+  languageKa       String
+  languageEn       String
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
+
+
+
+
 
 
 
