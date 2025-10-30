@@ -21,3 +21,35 @@ enum Role {
   INSTRUCTOR
   ADMIN
 }
+
+model User {
+  id        String   @id @default(uuid()) // 👈 აქ uuid()
+  email     String   @unique
+  password  String
+  name      String
+  surname   String?
+  phone     String?  @unique
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+}
+
+model Course {
+  id               Int      @id @default(autoincrement())
+  title            String
+  slug             String   @unique
+  description      String
+  originalPrice    String
+  discountedPrice  String
+  discount         String
+  imageUrl         String
+  altText          String
+  isOnline         Boolean
+  isGeorgia        Boolean
+  button           String
+}
+
+
+
+
+
+
