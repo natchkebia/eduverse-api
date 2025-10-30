@@ -49,32 +49,4 @@ export class UsersController {
 
     return { message: 'პაროლი წარმატებით შეიცვალა ✅' };
   }
-
-  // ✅ პაროლის ცვლილება
-  @UseGuards(JwtAuthGuard)
-  @Patch('change-password')
-  async changePassword(
-    @Req() req,
-    @Body() body: { currentPassword: string; newPassword: string },
-  ) {
-    const userId = req.user.userId;
-
-    if (!body.currentPassword || !body.newPassword) {
-      throw new BadRequestException('ყველა ველი სავალდებულოა');
-    }
-
-    const user = await this.usersService.findById(userId);
-    if (!user) throw new BadRequestException('მომხმარებელი ვერ მოიძებნა');
-
-    const isMatch = await bcrypt.compare(body.currentPassword, user.password);
-    if (!isMatch) {
-      throw new BadRequestException('ამჟამინდელი პაროლი არასწორია');
-    }
-
-    // ახალი პაროლის ჰეშვა
-    const hashedPassword = await bcrypt.hash(body.newPassword, 10);
-    await this.usersService.updatePassword(userId, hashedPassword);
-
-    return { message: 'პაროლი წარმატებით შეიცვალა ✅' };
-  }
 }
