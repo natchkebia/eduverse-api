@@ -1,10 +1,12 @@
+// src/courses/courses.module.ts
 import { Module } from '@nestjs/common';
-import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { CoursesController } from './courses.controller';
+import { PrismaModule } from '../prisma/prisma.module'; // 👈 აუცილებელია აქ ჩასმა
 
 @Module({
+  imports: [PrismaModule], // 👈 დაამატე
   controllers: [CoursesController],
-  providers: [CoursesService, PrismaService],
+  providers: [CoursesService],
 })
 export class CoursesModule {}

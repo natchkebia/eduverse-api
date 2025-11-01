@@ -34,14 +34,14 @@ model User {
 }
 
 model Course {
-  id               Int      @id @default(autoincrement())
-  slug             String   @unique
+  id               Int          @id @default(autoincrement())
+  slug             String       @unique
   originalPrice    Int
   discountedPrice  Int
   discount         String
   imageUrl         String
-  isOnline         Boolean  @default(false)
-  isGeorgia        Boolean  @default(true)
+  isOnline         Boolean      @default(false)
+  isGeorgia        Boolean      @default(true)
 
   titleKa          String
   titleEn          String
@@ -56,8 +56,31 @@ model Course {
   languageKa       String
   languageEn       String
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  syllabusKa       String?
+  syllabusEn       String?
+  mentorKa         String?
+  mentorEn         String?
+
+  // 🔹 ახალი ურთიერთობები
+  videos           Video[]
+  materials        Material[]
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Video {
+  id        Int     @id @default(autoincrement())
+  url       String
+  courseId  Int
+  course    Course  @relation(fields: [courseId], references: [id])
+}
+
+model Material {
+  id        Int     @id @default(autoincrement())
+  link      String
+  courseId  Int
+  course    Course  @relation(fields: [courseId], references: [id])
 }
 
 
