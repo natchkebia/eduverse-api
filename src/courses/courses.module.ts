@@ -2,10 +2,10 @@
 import { Module } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CoursesController } from './courses.controller';
-import { PrismaModule } from '../prisma/prisma.module'; // 👈 აუცილებელია აქ ჩასმა
+import { PrismaModule } from '../prisma/prisma.module'; 
 
 @Module({
-  imports: [PrismaModule], // 👈 დაამატე
+  imports: [PrismaModule], 
   controllers: [CoursesController],
   providers: [CoursesService],
 })
