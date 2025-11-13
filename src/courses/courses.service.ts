@@ -24,7 +24,8 @@ export class CoursesService {
     });
   }
 
-  async findOneBySlug(slug: string) {
+  // ⭐ SLUG-ით კურსის წამოღება
+  async findBySlug(slug: string) {
     return this.prisma.course.findUnique({
       where: { slug },
       include: {

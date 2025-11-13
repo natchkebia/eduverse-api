@@ -1,92 +1,157 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, CourseType } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // 🔹 Frontend Development
-  const frontendCourse = await prisma.course.create({
+  await prisma.course.create({
     data: {
+      type: CourseType.COURSE,
       slug: "frontend-development",
+
       titleKa: "Frontend დეველოპერი",
-      descriptionKa: "ისწავლე React, Next.js და TypeScript ნულიდან.",
-      altTextKa: "ფრონტენდის კურსი",
-      buttonKa: "შეიძინე",
-      formatKa: "ონლაინ",
-      languageKa: "ქართული",
       titleEn: "Frontend Development",
-      descriptionEn: "Learn React, Next.js, and TypeScript from scratch.",
+
+      descriptionKa: "ისწავლე React, Next.js და TypeScript ნულიდან.",
+      descriptionEn: "Learn React, Next.js and TypeScript from scratch.",
+
+      altTextKa: "ფრონტენდის კურსი",
       altTextEn: "Frontend Course",
-      buttonEn: "Buy Now",
+
+      buttonKa: "შეიძინე",
+      buttonEn: "Buy now",
+
+      formatKa: "ონლაინ",
       formatEn: "Online",
-      languageEn: "English",
+
+      languageKa: "ქართული",
+      languageEn: "Georgian",
+
       originalPrice: 800,
       discountedPrice: 600,
       discount: "25%",
+
       imageUrl: "/images/educationPic.webp",
       isOnline: true,
       isGeorgia: true,
+
       syllabusKa: "HTML, CSS, JavaScript, React, Next.js, TypeScript",
       syllabusEn: "HTML, CSS, JavaScript, React, Next.js, TypeScript",
+
       mentorKa: "გიორგი ბაგრატიონი",
       mentorEn: "George Bagrationi",
 
-      // 👇 nested create videos & materials
       videos: {
         create: [
           { url: "https://youtube.com/embed/dQw4w9WgXcQ" },
-          { url: "https://youtube.com/embed/example2" },
-        ],
+          { url: "https://youtube.com/embed/example2" }
+        ]
       },
+
       materials: {
         create: [
           { link: "https://developer.mozilla.org/en-US/docs/Web/HTML" },
-          { link: "https://react.dev/" },
-        ],
+          { link: "https://react.dev" }
+        ]
       },
     },
   });
 
-  // 🔹 UI/UX Design
-  const uiuxCourse = await prisma.course.create({
+  // -----------------------------
+  // UI/UX DESIGN (COURSE)
+  // -----------------------------
+  await prisma.course.create({
     data: {
+      type: CourseType.COURSE,
       slug: "uiux-design",
+
       titleKa: "UI/UX დიზაინი",
-      descriptionKa: "ისწავლე ფიგმა, პროტოტაირინგი და დიზაინის საფუძვლები.",
-      altTextKa: "დიზაინის კურსი",
-      buttonKa: "შეიძინე",
-      formatKa: "ადგილზე",
-      languageKa: "ქართული",
       titleEn: "UI/UX Design",
-      descriptionEn: "Learn Figma, prototyping, and design fundamentals.",
+
+      descriptionKa: "ისწავლე ფიგმა, UX, პროტოტაირინგი და დიზაინის საფუძვლები.",
+      descriptionEn: "Learn Figma, UX, prototyping and design fundamentals.",
+
+      altTextKa: "დიზაინის კურსი",
       altTextEn: "Design Course",
-      buttonEn: "Buy Now",
+
+      buttonKa: "შეიძინე",
+      buttonEn: "Buy now",
+
+      formatKa: "ადგილზე",
       formatEn: "On-site",
-      languageEn: "English",
+
+      languageKa: "ქართული",
+      languageEn: "Georgian",
+
       originalPrice: 1000,
       discountedPrice: 600,
       discount: "30%",
+
       imageUrl: "/images/educationPic.webp",
       isOnline: false,
       isGeorgia: true,
+
       syllabusKa: "Figma, UX Research, Wireframing, Prototyping",
       syllabusEn: "Figma, UX Research, Wireframing, Prototyping",
+
       mentorKa: "ნინი შარაშენიძე",
       mentorEn: "Nini Sharashenidze",
+
       videos: {
         create: [
           { url: "https://youtube.com/embed/design1" },
-          { url: "https://youtube.com/embed/design2" },
-        ],
+          { url: "https://youtube.com/embed/design2" }
+        ]
       },
+
       materials: {
         create: [
           { link: "https://figma.com" },
-          { link: "https://uxplanet.org/" },
-        ],
+          { link: "https://uxplanet.org" }
+        ]
       },
     },
   });
 
-  console.log("✅ Courses, videos, and materials seeded successfully!");
+
+  // -----------------------------
+  // PHOTOSHOP WORKSHOP
+  // -----------------------------
+  await prisma.course.create({
+    data: {
+      type: CourseType.WORKSHOP,
+      slug: "photoshop-workshop",
+
+      titleKa: "ფოტოშოპის ვორკშოფი",
+      titleEn: "Photoshop Workshop",
+
+      descriptionKa: "ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ფოტოშოპში.",
+      descriptionEn: "One-day intensive practical Photoshop workshop.",
+
+      altTextKa: "ვორკშოფი",
+      altTextEn: "Workshop",
+
+      buttonKa: "დაჯავშნა",
+      buttonEn: "Book now",
+
+      formatKa: "ადგილზე",
+      formatEn: "On-site",
+
+      languageKa: "ქართული",
+      languageEn: "Georgian",
+
+      originalPrice: 150,
+      discountedPrice: 120,
+      discount: "20%",
+
+      imageUrl: "/images/educationPic.webp",
+      isOnline: false,
+      isGeorgia: true,
+
+      date: new Date("2025-01-20T18:00:00"),
+      location: "თბილისი, GMT Plaza"
+    }
+  });
+
+  console.log("🌱 Seed completed successfully!");
 }
 
 main()

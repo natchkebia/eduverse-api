@@ -5,25 +5,28 @@ import { CoursesService } from './courses.service';
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
-  // ყველა კურსის წამოღება
+
   @Get()
   async findAll() {
     return this.coursesService.findAll();
   }
 
-  // კონკრეტული კურსის წამოღება (slug ან id-ით)
-  @Get(':identifier')
-  async findOne(@Param('identifier') identifier: string) {
-    // ✅ შევამოწმოთ, რიცხვია თუ არა (მაგ. /courses/1)
-    const isNumeric = !isNaN(Number(identifier));
 
-    const course = isNumeric
-      ? await this.coursesService.findOneById(Number(identifier))
-      : await this.coursesService.findOneBySlug(identifier);
+  @Get('id/:id')
+  async findOneById(@Param('id') id: string) {
+    const course = await this.coursesService.findOneById(Number(id));
 
-    if (!course) {
-      throw new NotFoundException(`Course not found for ${identifier}`);
-    }
+    if (!course) throw new NotFoundException(`Course not found for id ${id}`);
+
+    return course;
+  }
+
+  // ⭐ GET /courses/slug/frontend-development → წამოიღებს SLUG-ით
+  @Get('slug/:slug')
+  async findBySlug(@Param('slug') slug: string) {
+    const course = await this.coursesService.findBySlug(slug);
+
+    if (!course) throw new NotFoundException(`Course not found for slug ${slug}`);
 
     return course;
   }

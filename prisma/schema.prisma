@@ -7,23 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model User {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model prisma_migrations {
-// @@map("_prisma_migrations")
-// }
-
 enum Role {
   STUDENT
   INSTRUCTOR
   ADMIN
 }
 
+enum CourseType {
+  COURSE      // ჩვეულებრივი კურსი
+  WORKSHOP    // ვორკშოფი
+  MASTERCLASS // მასტერკლასი
+}
+
 model User {
-  id        String   @id @default(uuid()) // 👈 აქ uuid()
+  id        String   @id @default(uuid())
   email     String   @unique
   password  String
   name      String
@@ -36,6 +33,9 @@ model User {
 model Course {
   id               Int          @id @default(autoincrement())
   slug             String       @unique
+
+  type             CourseType   @default(COURSE)  // 👈 აქაა მთავარი
+
   originalPrice    Int
   discountedPrice  Int
   discount         String
@@ -61,7 +61,10 @@ model Course {
   mentorKa         String?
   mentorEn         String?
 
-  // 🔹 ახალი ურთიერთობები
+  // OPTIONAL – more specific for events
+  date             DateTime?     // ერთდღიანი ვორკშოფი/მასტერკლასი
+  location         String?       // ლოკაცია ოფლაინისთვის
+
   videos           Video[]
   materials        Material[]
 
@@ -82,13 +85,3 @@ model Material {
   courseId  Int
   course    Course  @relation(fields: [courseId], references: [id])
 }
-
-
-
-
-
-
-
-
-
-
