@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // მომხმარებლის მიღება Dashboard-ისთვის
+
   async getMe(userId: string) {
     try {
       const user = await this.prisma.user.findUnique({
@@ -29,7 +29,7 @@ export class UsersService {
     }
   }
 
-  // პაროლის განახლება (პირად მონაცემებში)
+ 
   async updatePassword(userId: string, hashedPassword: string) {
     return this.prisma.user.update({
       where: { id: userId },
@@ -37,7 +37,7 @@ export class UsersService {
     });
   }
 
-  // შიდა გამოყენებისთვის – მომხმარებლის მოძებნა ID-ით
+ 
   async findById(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },

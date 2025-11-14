@@ -15,14 +15,14 @@ import * as bcrypt from 'bcrypt';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ✅ მიღება საკუთარი ტოკენით (dashboard-ში გამოსაყენებლად)
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@Req() req) {
-    return this.usersService.getMe(req.user.userId); // ტოკენიდან userId
+    return this.usersService.getMe(req.user.userId); 
   }
 
-  // ✅ პაროლის ცვლილება
+
   @UseGuards(JwtAuthGuard)
   @Patch('change-password')
   async changePassword(
@@ -43,7 +43,7 @@ export class UsersController {
       throw new BadRequestException('ამჟამინდელი პაროლი არასწორია');
     }
 
-    // ახალი პაროლის ჰეშვა
+
     const hashedPassword = await bcrypt.hash(body.newPassword, 10);
     await this.usersService.updatePassword(userId, hashedPassword);
 

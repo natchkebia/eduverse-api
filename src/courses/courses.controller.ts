@@ -21,7 +21,6 @@ export class CoursesController {
     return course;
   }
 
-  // ⭐ GET /courses/slug/frontend-development → წამოიღებს SLUG-ით
   @Get('slug/:slug')
   async findBySlug(@Param('slug') slug: string) {
     const course = await this.coursesService.findBySlug(slug);

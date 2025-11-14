@@ -12,7 +12,6 @@ import { Role } from '@prisma/client';
 export class AuthService {
   constructor(private prisma: PrismaService) {}
 
-  // 🟢 რეგისტრაცია
   async register(
     email: string,
     password: string,
@@ -20,11 +19,8 @@ export class AuthService {
     surname?: string,
     phone?: string,
   ) {
-    // შეამოწმე არსებობს თუ არა უკვე მომხმარებელი ელფოსტით ან ტელეფონით
     const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { phone }],
-      },
+      where: { OR: [{ email }, { phone }] },
     });
     if (existingUser) {
       throw new ConflictException(
@@ -32,52 +28,80 @@ export class AuthService {
       );
     }
 
-    // პაროლის დაშიფვრა
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ახალი მომხმარებლის შექმნა
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        surname: surname || undefined,
-        phone: phone || undefined,
-        role: Role.STUDENT, // ✅ default როლი
+        surname: surname || null,
+        phone: phone || null,
+        role: Role.STUDENT,
+        provider: 'local',
       },
     });
 
-    // JWT ტოკენის გენერაცია
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role }, // ✅ userId უნდა დაემთხვეს req.user.userId-ს
-      process.env.JWT_SECRET || 'secret-key',
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' },
     );
 
     return { accessToken: token };
   }
 
-  // 🟡 ავტორიზაცია
   async login(email: string, password: string) {
-    // მოძებნე მომხმარებელი ელფოსტით
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new UnauthorizedException('მომხმარებელი ვერ მოიძებნა');
-    }
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
 
-    // შეამოწმე პაროლი
+    if (!user) throw new UnauthorizedException('მომხმარებელი ვერ მოიძებნა');
+
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      throw new UnauthorizedException('პაროლი არასწორია');
-    }
+    if (!isValid) throw new UnauthorizedException('პაროლი არასწორია');
 
-    // JWT ტოკენის გენერაცია
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role }, // 👈 იგივე userId
-      process.env.JWT_SECRET || 'secret-key',
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' },
     );
 
     return { accessToken: token };
+  }
+
+  async validateOAuthUser(oauthUser: any) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: oauthUser.email },
+    });
+
+    if (!existing) {
+      return this.prisma.user.create({
+        data: {
+          email: oauthUser.email,
+          password: null,
+          name: oauthUser.name,
+          surname: oauthUser.surname || null,
+          avatar: oauthUser.avatar || null,
+          provider: oauthUser.provider,
+          role: Role.STUDENT,
+        },
+      });
+    }
+    return this.prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        provider: oauthUser.provider,
+        avatar: oauthUser.avatar || existing.avatar,
+      },
+    });
+  }
+
+  createOAuthToken(user: any) {
+    return jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' },
+    );
   }
 }

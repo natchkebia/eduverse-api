@@ -5,19 +5,17 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 🟢 აუცილებელია cookie-ზე მუშაობისთვის
   app.use(cookieParser());
 
-  // ✅ FRONTEND-ის მისამართები რომ იმუშაოს
   app.enableCors({
     origin: [
-      'http://localhost:3001', // ფრონტი 3001-ზე
-      'http://127.0.0.1:3001', // 👈 დაამატე ეს
-      'http://localhost:3002', // მეორე პორტი თუ გაქვს dev-ში
+      'http://localhost:3001', 
+      'http://127.0.0.1:3001', 
+      'http://localhost:3002', 
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true, // cookie გადაცემა frontend↔backend
+    credentials: true, 
   });
 
   await app.listen(3000);

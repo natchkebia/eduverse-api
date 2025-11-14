@@ -8,7 +8,7 @@ import { CoursesModule } from './courses/courses.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    PrismaModule, // 👈 ეს ხაზს სჭირდება!
+    PrismaModule,
     AuthModule,
     UsersModule,
     CoursesModule,

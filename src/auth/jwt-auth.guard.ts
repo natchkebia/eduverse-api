@@ -14,7 +14,7 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret-key');
-      request.user = decoded; // 👈 აქ userId ჩავარდება req.user.userId-ში
+      request.user = decoded; 
       return true;
     } catch (err) {
       console.error('❌ Invalid token:', err);

@@ -22,11 +22,13 @@ enum CourseType {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String
+  password  String?               // ← ❗ OAuth-ისთვის შესაძლოა null იყოს
   name      String
   surname   String?
   phone     String?  @unique
   role      Role     @default(STUDENT)
+  provider  String?               // ← google, facebook, local
+  avatar    String?               // ← ფოტო OAuth-იდან
   createdAt DateTime @default(now())
 }
 

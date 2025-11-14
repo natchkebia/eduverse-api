@@ -1,6 +1,9 @@
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('STUDENT', 'INSTRUCTOR', 'ADMIN');
 
+-- CreateEnum
+CREATE TYPE "CourseType" AS ENUM ('COURSE', 'WORKSHOP', 'MASTERCLASS');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -19,6 +22,7 @@ CREATE TABLE "User" (
 CREATE TABLE "Course" (
     "id" SERIAL NOT NULL,
     "slug" TEXT NOT NULL,
+    "type" "CourseType" NOT NULL DEFAULT 'COURSE',
     "originalPrice" INTEGER NOT NULL,
     "discountedPrice" INTEGER NOT NULL,
     "discount" TEXT NOT NULL,
@@ -41,6 +45,8 @@ CREATE TABLE "Course" (
     "syllabusEn" TEXT,
     "mentorKa" TEXT,
     "mentorEn" TEXT,
+    "date" TIMESTAMP(3),
+    "location" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

@@ -1,5 +1,15 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -22,5 +32,38 @@ export class AuthController {
     @Body('password') password: string,
   ) {
     return this.authService.login(email, password);
+  }
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleLogin() {
+    return;
+  }
+
+  @Get('google/redirect')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(@Req() req, @Res() res: Response) {
+    const user = await this.authService.validateOAuthUser(req.user);
+    const token = this.authService.createOAuthToken(user);
+
+    return res.redirect(
+      `${process.env.FRONTEND_REDIRECT_URL}/oauth?token=${token}`,
+    );
+  }
+
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookLogin() {
+    return;
+  }
+
+  @Get('facebook/redirect')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookCallback(@Req() req, @Res() res: Response) {
+    const user = await this.authService.validateOAuthUser(req.user);
+    const token = this.authService.createOAuthToken(user);
+
+    return res.redirect(
+      `${process.env.FRONTEND_REDIRECT_URL}/oauth?token=${token}`,
+    );
   }
 }

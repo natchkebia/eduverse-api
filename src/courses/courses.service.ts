@@ -24,7 +24,6 @@ export class CoursesService {
     });
   }
 
-  // ⭐ SLUG-ით კურსის წამოღება
   async findBySlug(slug: string) {
     return this.prisma.course.findUnique({
       where: { slug },
