@@ -1,11 +1,15 @@
-import { PrismaClient, $Enums } from '@prisma/client';
+import { PrismaClient, CourseType } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const { CourseType } = $Enums;
 
 async function main() {
-  await prisma.course.create({
-    data: {
+  // =========================
+  // 1) FRONTEND DEVELOPMENT COURSE
+  // =========================
+  await prisma.course.upsert({
+    where: { slug: 'frontend-development' },
+    update: {},
+    create: {
       type: CourseType.COURSE,
       slug: 'frontend-development',
 
@@ -57,11 +61,13 @@ async function main() {
     },
   });
 
-  // -----------------------------
-  // UI/UX DESIGN (COURSE)
-  // -----------------------------
-  await prisma.course.create({
-    data: {
+  // =========================
+  // 2) UI/UX DESIGN COURSE
+  // =========================
+  await prisma.course.upsert({
+    where: { slug: 'uiux-design' },
+    update: {},
+    create: {
       type: CourseType.COURSE,
       slug: 'uiux-design',
 
@@ -113,11 +119,13 @@ async function main() {
     },
   });
 
-  // -----------------------------
-  // PHOTOSHOP WORKSHOP
-  // -----------------------------
-  await prisma.course.create({
-    data: {
+  // =========================
+  // 3) PHOTOSHOP WORKSHOP
+  // =========================
+  await prisma.course.upsert({
+    where: { slug: 'photoshop-workshop' },
+    update: {},
+    create: {
       type: CourseType.WORKSHOP,
       slug: 'photoshop-workshop',
 
@@ -152,9 +160,51 @@ async function main() {
     },
   });
 
+  // =========================
+  // 4) AI WORKSHOP (FREE)
+  // =========================
+  await prisma.course.upsert({
+    where: { slug: 'ai-workshop' },
+    update: {},
+    create: {
+      type: CourseType.WORKSHOP,
+      slug: 'ai-workshop',
+
+      titleKa: 'ხელოვნური ინტელექტის ვორკშოფი',
+      titleEn: 'AI Workshop',
+
+      descriptionKa:
+        'ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ხელოვნური ინტელექტის შესახებ.',
+      descriptionEn: 'One-day intensive practical AI workshop.',
+
+      altTextKa: 'ვორკშოფი',
+      altTextEn: 'Workshop',
+
+      buttonKa: 'დაჯავშნა',
+      buttonEn: 'Book now',
+
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
+
+      languageKa: 'ინგლისური',
+      languageEn: 'English',
+
+      originalPrice: 0,
+      discountedPrice: 0,
+      discount: null,
+
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: false,
+
+      date: new Date('2025-02-01T19:00:00'),
+      location: 'ონლაინ',
+    },
+  });
+
   console.log('🌱 Seed completed successfully!');
 }
 
 main()
-  .catch((e) => console.error(e))
+  .catch((err) => console.error('❌ Seed failed:', err))
   .finally(() => prisma.$disconnect());
