@@ -14,21 +14,21 @@ enum Role {
 }
 
 enum CourseType {
-  COURSE      // ჩვეულებრივი კურსი
-  WORKSHOP    // ვორკშოფი
-  MASTERCLASS // მასტერკლასი
+  COURSE      
+  WORKSHOP    
+  MASTERCLASS 
 }
 
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String?               // ← ❗ OAuth-ისთვის შესაძლოა null იყოს
+  password  String?               
   name      String
   surname   String?
   phone     String?  @unique
   role      Role     @default(STUDENT)
-  provider  String?               // ← google, facebook, local
-  avatar    String?               // ← ფოტო OAuth-იდან
+  provider  String?              
+  avatar    String?            
   createdAt DateTime @default(now())
 }
 
@@ -36,7 +36,7 @@ model Course {
   id               Int          @id @default(autoincrement())
   slug             String       @unique
 
-  type             CourseType   @default(COURSE)  // 👈 აქაა მთავარი
+  type             CourseType   @default(COURSE) 
 
   originalPrice    Int
   discountedPrice  Int
@@ -64,8 +64,8 @@ model Course {
   mentorEn         String?
 
   // OPTIONAL – more specific for events
-  date             DateTime?     // ერთდღიანი ვორკშოფი/მასტერკლასი
-  location         String?       // ლოკაცია ოფლაინისთვის
+  date             DateTime?     
+  location         String?       
 
   videos           Video[]
   materials        Material[]

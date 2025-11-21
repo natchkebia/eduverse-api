@@ -3,204 +3,396 @@ import { PrismaClient, CourseType } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // =========================
-  // 1) FRONTEND DEVELOPMENT COURSE
-  // =========================
-  await prisma.course.upsert({
-    where: { slug: 'frontend-development' },
-    update: {},
-    create: {
-      type: CourseType.COURSE,
+  const courses = [
+    {
       slug: 'frontend-development',
-
+      type: CourseType.COURSE,
       titleKa: 'Frontend დეველოპერი',
       titleEn: 'Frontend Development',
-
       descriptionKa: 'ისწავლე React, Next.js და TypeScript ნულიდან.',
       descriptionEn: 'Learn React, Next.js and TypeScript from scratch.',
-
       altTextKa: 'ფრონტენდის კურსი',
       altTextEn: 'Frontend Course',
-
       buttonKa: 'შეიძინე',
       buttonEn: 'Buy now',
-
       formatKa: 'ონლაინ',
       formatEn: 'Online',
-
       languageKa: 'ქართული',
       languageEn: 'Georgian',
-
       originalPrice: 800,
       discountedPrice: 600,
       discount: '25%',
-
       imageUrl: '/images/educationPic.webp',
       isOnline: true,
       isGeorgia: true,
-
       syllabusKa: 'HTML, CSS, JavaScript, React, Next.js, TypeScript',
       syllabusEn: 'HTML, CSS, JavaScript, React, Next.js, TypeScript',
-
       mentorKa: 'გიორგი ბაგრატიონი',
       mentorEn: 'George Bagrationi',
-
-      videos: {
-        create: [
-          { url: 'https://youtube.com/embed/dQw4w9WgXcQ' },
-          { url: 'https://youtube.com/embed/example2' },
-        ],
-      },
-
-      materials: {
-        create: [
-          { link: 'https://developer.mozilla.org/en-US/docs/Web/HTML' },
-          { link: 'https://react.dev' },
-        ],
-      },
+      videos: [
+        { url: 'https://youtube.com/embed/dQw4w9WgXcQ' },
+        { url: 'https://youtube.com/embed/example2' },
+      ],
+      materials: [
+        { link: 'https://developer.mozilla.org/en-US/docs/Web/HTML' },
+        { link: 'https://react.dev' },
+      ],
     },
-  });
-
-  // =========================
-  // 2) UI/UX DESIGN COURSE
-  // =========================
-  await prisma.course.upsert({
-    where: { slug: 'uiux-design' },
-    update: {},
-    create: {
-      type: CourseType.COURSE,
+    {
       slug: 'uiux-design',
-
+      type: CourseType.COURSE,
       titleKa: 'UI/UX დიზაინი',
       titleEn: 'UI/UX Design',
-
       descriptionKa: 'ისწავლე ფიგმა, UX, პროტოტაირინგი და დიზაინის საფუძვლები.',
       descriptionEn: 'Learn Figma, UX, prototyping and design fundamentals.',
-
       altTextKa: 'დიზაინის კურსი',
       altTextEn: 'Design Course',
-
       buttonKa: 'შეიძინე',
       buttonEn: 'Buy now',
-
       formatKa: 'ადგილზე',
       formatEn: 'On-site',
-
       languageKa: 'ქართული',
       languageEn: 'Georgian',
-
       originalPrice: 1000,
       discountedPrice: 600,
       discount: '30%',
-
       imageUrl: '/images/educationPic.webp',
       isOnline: false,
       isGeorgia: true,
-
       syllabusKa: 'Figma, UX Research, Wireframing, Prototyping',
       syllabusEn: 'Figma, UX Research, Wireframing, Prototyping',
-
       mentorKa: 'ნინი შარაშენიძე',
       mentorEn: 'Nini Sharashenidze',
-
-      videos: {
-        create: [
-          { url: 'https://youtube.com/embed/design1' },
-          { url: 'https://youtube.com/embed/design2' },
-        ],
-      },
-
-      materials: {
-        create: [
-          { link: 'https://figma.com' },
-          { link: 'https://uxplanet.org' },
-        ],
-      },
+      videos: [
+        { url: 'https://youtube.com/embed/design1' },
+        { url: 'https://youtube.com/embed/design2' },
+      ],
+      materials: [
+        { link: 'https://figma.com' },
+        { link: 'https://uxplanet.org' },
+      ],
     },
-  });
-
-  // =========================
-  // 3) PHOTOSHOP WORKSHOP
-  // =========================
-  await prisma.course.upsert({
-    where: { slug: 'photoshop-workshop' },
-    update: {},
-    create: {
-      type: CourseType.WORKSHOP,
-      slug: 'photoshop-workshop',
-
-      titleKa: 'ფოტოშოპის ვორკშოფი',
-      titleEn: 'Photoshop Workshop',
-
-      descriptionKa: 'ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ფოტოშოპში.',
-      descriptionEn: 'One-day intensive practical Photoshop workshop.',
-
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-
-      formatKa: 'ადგილზე',
-      formatEn: 'On-site',
-
+    {
+      slug: 'backend-development',
+      type: CourseType.COURSE,
+      titleKa: 'Backend დეველოპერი',
+      titleEn: 'Backend Development',
+      descriptionKa: 'ისწავლე Node.js, Express და PostgreSQL.',
+      descriptionEn: 'Learn Node.js, Express and PostgreSQL.',
+      altTextKa: 'ბექენდის კურსი',
+      altTextEn: 'Backend Course',
+      buttonKa: 'შეიძინე',
+      buttonEn: 'Buy now',
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
       languageKa: 'ქართული',
       languageEn: 'Georgian',
+      originalPrice: 900,
+      discountedPrice: 650,
+      discount: '28%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: true,
+      syllabusKa: 'Node.js, Express, PostgreSQL, REST APIs',
+      syllabusEn: 'Node.js, Express, PostgreSQL, REST APIs',
+      mentorKa: 'დავით ყიფიანი',
+      mentorEn: 'David Kipiani',
+      videos: [
+        { url: 'https://youtube.com/embed/backend1' },
+        { url: 'https://youtube.com/embed/backend2' },
+      ],
+      materials: [
+        { link: 'https://nodejs.org' },
+        { link: 'https://www.postgresql.org' },
+      ],
+    },
+    {
+      slug: 'mobile-development',
+      type: CourseType.COURSE,
+      titleKa: 'მობილური აპლიკაციების დეველოპმენტი',
+      titleEn: 'Mobile App Development',
+      descriptionKa:
+        'ისწავლე Flutter და React Native აპლიკაციების შესაქმნელად.',
+      descriptionEn: 'Learn Flutter and React Native to build mobile apps.',
+      altTextKa: 'მობილური კურსი',
+      altTextEn: 'Mobile Course',
+      buttonKa: 'შეიძინე',
+      buttonEn: 'Buy now',
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
+      originalPrice: 950,
+      discountedPrice: 700,
+      discount: '26%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: true,
+      syllabusKa: 'Flutter, React Native, Dart, Mobile UI',
+      syllabusEn: 'Flutter, React Native, Dart, Mobile UI',
+      mentorKa: 'მარიამ ჯინჭარაძე',
+      mentorEn: 'Mariam Jincharadze',
+      videos: [
+        { url: 'https://youtube.com/embed/mobile1' },
+        { url: 'https://youtube.com/embed/mobile2' },
+      ],
+      materials: [
+        { link: 'https://flutter.dev' },
+        { link: 'https://reactnative.dev' },
+      ],
+    },
+    {
+      slug: 'data-science',
+      type: CourseType.COURSE,
+      titleKa: 'დაცული მეცნიერება',
+      titleEn: 'Data Science',
+      descriptionKa:
+        'ისწავლე Python, Pandas, Machine Learning და AI საფუძვლები.',
+      descriptionEn: 'Learn Python, Pandas, Machine Learning and AI basics.',
+      altTextKa: 'დამუშავების კურსი',
+      altTextEn: 'Data Science Course',
+      buttonKa: 'შეიძინე',
+      buttonEn: 'Buy now',
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
+      originalPrice: 1200,
+      discountedPrice: 850,
+      discount: '29%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: true,
+      syllabusKa: 'Python, Pandas, NumPy, Machine Learning, AI',
+      syllabusEn: 'Python, Pandas, NumPy, Machine Learning, AI',
+      mentorKa: 'თამარ ნაჭყებია',
+      mentorEn: 'Tamar Natchkebia',
+      videos: [
+        { url: 'https://youtube.com/embed/ds1' },
+        { url: 'https://youtube.com/embed/ds2' },
+      ],
+      materials: [
+        { link: 'https://pandas.pydata.org' },
+        { link: 'https://scikit-learn.org' },
+      ],
+    },
+    {
+      slug: 'cybersecurity',
+      type: CourseType.COURSE,
+      titleKa: 'კიბერუსაფრთხოება',
+      titleEn: 'Cybersecurity',
+      descriptionKa:
+        'ისწავლე ქსელის უსაფრთხოება, ჰაკერული თავდასხმები და დაცვა.',
+      descriptionEn: 'Learn network security, hacking attacks and protection.',
+      altTextKa: 'უსაფრთხოების კურსი',
+      altTextEn: 'Cybersecurity Course',
+      buttonKa: 'შეიძინე',
+      buttonEn: 'Buy now',
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
+      originalPrice: 1100,
+      discountedPrice: 800,
+      discount: '27%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: true,
+      syllabusKa: 'Networking, Penetration Testing, Security Protocols',
+      syllabusEn: 'Networking, Penetration Testing, Security Protocols',
+      mentorKa: 'ლევან გოგოლაძე',
+      mentorEn: 'Levan Gogoladze',
+      videos: [
+        { url: 'https://youtube.com/embed/cyber1' },
+        { url: 'https://youtube.com/embed/cyber2' },
+      ],
+      materials: [
+        { link: 'https://owasp.org' },
+        { link: 'https://www.cisco.com/c/en/us/products/security/' },
+      ],
+    },
+  ];
 
+  for (const course of courses) {
+    const { videos, materials, ...courseData } = course;
+
+    await prisma.course.upsert({
+      where: { slug: course.slug },
+      update: {
+        ...courseData,
+        videos: {
+          deleteMany: {},
+          create: videos, 
+        },
+        materials: {
+          deleteMany: {}, 
+          create: materials, 
+        },
+      },
+      create: {
+        ...courseData,
+        videos: { create: videos },
+        materials: { create: materials },
+      },
+    });
+  }
+  const workshops = [
+    {
+      slug: 'photoshop-workshop',
+      type: CourseType.WORKSHOP,
+      titleKa: 'ფოტოშოპის ვორკშოფი',
+      titleEn: 'Photoshop Workshop',
+      descriptionKa: 'ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ფოტოშოპში.',
+      descriptionEn: 'One-day intensive practical Photoshop workshop.',
+      altTextKa: 'ვორკშოფი',
+      altTextEn: 'Workshop',
+      buttonKa: 'დაჯავშნა',
+      buttonEn: 'Book now',
+      formatKa: 'ადგილზე',
+      formatEn: 'On-site',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
       originalPrice: 150,
       discountedPrice: 120,
       discount: '20%',
-
       imageUrl: '/images/educationPic.webp',
       isOnline: false,
       isGeorgia: true,
-
       date: new Date('2025-01-20T18:00:00'),
       location: 'თბილისი, GMT Plaza',
     },
-  });
-
-  // =========================
-  // 4) AI WORKSHOP (FREE)
-  // =========================
-  await prisma.course.upsert({
-    where: { slug: 'ai-workshop' },
-    update: {},
-    create: {
-      type: CourseType.WORKSHOP,
+    {
       slug: 'ai-workshop',
-
+      type: CourseType.WORKSHOP,
       titleKa: 'ხელოვნური ინტელექტის ვორკშოფი',
       titleEn: 'AI Workshop',
-
       descriptionKa:
         'ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ხელოვნური ინტელექტის შესახებ.',
       descriptionEn: 'One-day intensive practical AI workshop.',
-
       altTextKa: 'ვორკშოფი',
       altTextEn: 'Workshop',
-
       buttonKa: 'დაჯავშნა',
       buttonEn: 'Book now',
-
       formatKa: 'ონლაინ',
       formatEn: 'Online',
-
       languageKa: 'ინგლისური',
       languageEn: 'English',
-
       originalPrice: 0,
       discountedPrice: 0,
       discount: null,
-
       imageUrl: '/images/educationPic.webp',
       isOnline: true,
       isGeorgia: false,
-
       date: new Date('2025-02-01T19:00:00'),
       location: 'ონლაინ',
     },
-  });
+    {
+      slug: 'figma-workshop',
+      type: CourseType.WORKSHOP,
+      titleKa: 'ფიგმის ვორკშოფი',
+      titleEn: 'Figma Workshop',
+      descriptionKa: 'ერთდღიანი ინტენსიური ვორკშოფი ფიგმაში.',
+      descriptionEn: 'One-day intensive workshop in Figma.',
+      altTextKa: 'ვორკშოფი',
+      altTextEn: 'Workshop',
+      buttonKa: 'დაჯავშნა',
+      buttonEn: 'Book now',
+      formatKa: 'ადგილზე',
+      formatEn: 'On-site',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
+      originalPrice: 100,
+      discountedPrice: 80,
+      discount: '20%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: false,
+      isGeorgia: true,
+      date: new Date('2025-03-05T18:00:00'),
+      location: 'თბილისი, Innovation Hub',
+    },
+    {
+      slug: 'react-workshop',
+      type: CourseType.WORKSHOP,
+      titleKa: 'React ვორკშოფი',
+      titleEn: 'React Workshop',
+      descriptionKa: 'ერთდღიანი პრაქტიკული React ვორკშოფი.',
+      descriptionEn: 'One-day practical React workshop.',
+      altTextKa: 'ვორკშოფი',
+      altTextEn: 'Workshop',
+      buttonKa: 'დაჯავშნა',
+      buttonEn: 'Book now',
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
+      originalPrice: 120,
+      discountedPrice: 90,
+      discount: '25%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: true,
+      date: new Date('2025-03-15T18:00:00'),
+      location: 'ონლაინ',
+    },
+    {
+      slug: 'machine-learning-workshop',
+      type: CourseType.WORKSHOP,
+      titleKa: 'Machine Learning ვორკშოფი',
+      titleEn: 'Machine Learning Workshop',
+      descriptionKa: 'ერთდღიანი პრაქტიკული ML ვორკშოფი Python-ში.',
+      descriptionEn: 'One-day practical ML workshop in Python.',
+      altTextKa: 'ვორკშოფი',
+      altTextEn: 'Workshop',
+      buttonKa: 'დაჯავშნა',
+      buttonEn: 'Book now',
+      formatKa: 'ონლაინ',
+      formatEn: 'Online',
+      languageKa: 'ინგლისური',
+      languageEn: 'English',
+      originalPrice: 200,
+      discountedPrice: 150,
+      discount: '25%',
+      imageUrl: '/images/educationPic.webp',
+      isOnline: true,
+      isGeorgia: false,
+      date: new Date('2025-04-01T19:00:00'),
+      location: 'ონლაინ',
+    },
+    {
+      slug: 'cybersecurity-workshop',
+      type: CourseType.WORKSHOP,
+      titleKa: 'კიბერუსაფრთხოების ვორკშოფი',
+      titleEn: 'Cybersecurity Workshop',
+      descriptionKa: 'ერთდღიანი ინტენსიური ვორკშოფი კიბერუსაფრთხოებაზე.',
+      descriptionEn: 'One-day intensive workshop on cybersecurity.',
+      altTextKa: 'ვორკშოფი',
+      altTextEn: 'Workshop',
+      buttonKa: 'დაჯავშნა',
+      buttonEn: 'Book now',
+      formatKa: 'ადგილზე',
+      formatEn: 'On-site',
+      languageKa: 'ქართული',
+      languageEn: 'Georgian',
+      originalPrice: 0,
+      discountedPrice: 0,
+      discount: null,
+      imageUrl: '/images/educationPic.webp',
+      isOnline: false,
+      isGeorgia: true,
+      date: new Date('2025-04-10T18:00:00'),
+      location: 'თბილისი, TechPark',
+    },
+  ];
+
+  for (const workshop of workshops) {
+    await prisma.course.upsert({
+      where: { slug: workshop.slug },
+      update: {
+        ...workshop,
+      },
+      create: { ...workshop },
+    });
+  }
 
   console.log('🌱 Seed completed successfully!');
 }
