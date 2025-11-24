@@ -1,8 +1,28 @@
-import { PrismaClient, CourseType } from '@prisma/client';
+import { PrismaClient, CourseType, Role } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const adminEmail = 'tamarnatchkebia2@gmail.com';
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
+  if (!existingAdmin) {
+    const hashedPassword = await bcrypt.hash('Tamnatch1!', 10);
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashedPassword,
+        name: 'tamar',
+        surname: 'natchkebia',
+        role: Role.ADMIN,
+      },
+    });
+    console.log('✅ Admin user created');
+  } else {
+    console.log('⚠️ Admin already exists');
+  }
   const courses = [
     {
       slug: 'frontend-development',
@@ -222,11 +242,11 @@ async function main() {
         ...courseData,
         videos: {
           deleteMany: {},
-          create: videos, 
+          create: videos,
         },
         materials: {
-          deleteMany: {}, 
-          create: materials, 
+          deleteMany: {},
+          create: materials,
         },
       },
       create: {

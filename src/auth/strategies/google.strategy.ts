@@ -24,12 +24,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     }
 
     const user = {
-      provider: profile.provider, 
-      email: profile.emails[0].value, 
+      provider: profile.provider,
+      email: profile.emails[0].value,
       name:
-        profile.displayName ||
         profile.name?.givenName ||
         profile._json?.given_name ||
+        profile.displayName ||
         'User',
 
       surname: profile.name?.familyName || profile._json?.family_name || null,

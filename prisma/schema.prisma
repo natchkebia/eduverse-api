@@ -9,42 +9,38 @@ datasource db {
 
 enum Role {
   STUDENT
-  INSTRUCTOR
   ADMIN
 }
 
 enum CourseType {
-  COURSE      
-  WORKSHOP    
-  MASTERCLASS 
+  COURSE
+  WORKSHOP
+  MASTERCLASS
 }
 
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String?               
+  password  String?
   name      String
   surname   String?
   phone     String?  @unique
   role      Role     @default(STUDENT)
-  provider  String?              
-  avatar    String?            
+  provider  String?
+  avatar    String?
   createdAt DateTime @default(now())
 }
 
 model Course {
   id               Int          @id @default(autoincrement())
   slug             String       @unique
-
-  type             CourseType   @default(COURSE) 
-
+  type             CourseType   @default(COURSE)
   originalPrice    Int
   discountedPrice  Int
   discount         String?
   imageUrl         String
   isOnline         Boolean      @default(false)
   isGeorgia        Boolean      @default(true)
-
   titleKa          String
   titleEn          String
   descriptionKa    String
@@ -57,19 +53,14 @@ model Course {
   formatEn         String
   languageKa       String
   languageEn       String
-
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?
   mentorEn         String?
-
-  // OPTIONAL – more specific for events
-  date             DateTime?     
-  location         String?       
-
+  date             DateTime?
+  location         String?
   videos           Video[]
   materials        Material[]
-
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }

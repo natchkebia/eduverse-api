@@ -33,27 +33,23 @@ export class AuthController {
   ) {
     return this.authService.login(email, password);
   }
+
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleLogin() {
-    return;
   }
-
+  
   @Get('google/redirect')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req, @Res() res: Response) {
     const user = await this.authService.validateOAuthUser(req.user);
     const token = this.authService.createOAuthToken(user);
-
-    return res.redirect(
-      `${process.env.FRONTEND_REDIRECT_URL}/oauth?token=${token}`,
-    );
+    return res.redirect(`http://localhost:3001/ka/oauth?token=${token}`);
   }
 
   @Get('facebook')
   @UseGuards(AuthGuard('facebook'))
   async facebookLogin() {
-    return;
   }
 
   @Get('facebook/redirect')
@@ -61,9 +57,6 @@ export class AuthController {
   async facebookCallback(@Req() req, @Res() res: Response) {
     const user = await this.authService.validateOAuthUser(req.user);
     const token = this.authService.createOAuthToken(user);
-
-    return res.redirect(
-      `${process.env.FRONTEND_REDIRECT_URL}/oauth?token=${token}`,
-    );
+    return res.redirect(`http://localhost:3001/oauth?token=${token}`);
   }
 }
