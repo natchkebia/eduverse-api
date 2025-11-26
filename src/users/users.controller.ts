@@ -15,13 +15,11 @@ import * as bcrypt from 'bcrypt';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@Req() req) {
-    return this.usersService.getMe(req.user.userId); 
+    return this.usersService.getMe(req.user.id);
   }
-
 
   @UseGuards(JwtAuthGuard)
   @Patch('change-password')
@@ -29,7 +27,7 @@ export class UsersController {
     @Req() req,
     @Body() body: { currentPassword: string; newPassword: string },
   ) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     if (!body.currentPassword || !body.newPassword) {
       throw new BadRequestException('ყველა ველი სავალდებულოა');
@@ -42,7 +40,6 @@ export class UsersController {
     if (!isMatch) {
       throw new BadRequestException('ამჟამინდელი პაროლი არასწორია');
     }
-
 
     const hashedPassword = await bcrypt.hash(body.newPassword, 10);
     await this.usersService.updatePassword(userId, hashedPassword);

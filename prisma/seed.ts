@@ -1,5 +1,6 @@
 import { PrismaClient, CourseType, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { addDays, addMonths } from 'date-fns';
 
 const prisma = new PrismaClient();
 
@@ -57,6 +58,8 @@ async function main() {
         { link: 'https://developer.mozilla.org/en-US/docs/Web/HTML' },
         { link: 'https://react.dev' },
       ],
+      startDate: new Date(),
+      endDate: addMonths(new Date(), 1),
     },
     {
       slug: 'uiux-design',
@@ -91,6 +94,8 @@ async function main() {
         { link: 'https://figma.com' },
         { link: 'https://uxplanet.org' },
       ],
+      startDate: new Date(),
+      endDate: addDays(new Date(), 7),
     },
     {
       slug: 'backend-development',
@@ -125,6 +130,8 @@ async function main() {
         { link: 'https://nodejs.org' },
         { link: 'https://www.postgresql.org' },
       ],
+      startDate: new Date(),
+      endDate: addMonths(new Date(), 1),
     },
     {
       slug: 'mobile-development',
@@ -160,6 +167,8 @@ async function main() {
         { link: 'https://flutter.dev' },
         { link: 'https://reactnative.dev' },
       ],
+      startDate: new Date(),
+      endDate: addDays(new Date(), 2),
     },
     {
       slug: 'data-science',
@@ -195,6 +204,8 @@ async function main() {
         { link: 'https://pandas.pydata.org' },
         { link: 'https://scikit-learn.org' },
       ],
+      startDate: new Date(),
+      endDate: addMonths(new Date(), 1),
     },
     {
       slug: 'cybersecurity',
@@ -230,6 +241,8 @@ async function main() {
         { link: 'https://owasp.org' },
         { link: 'https://www.cisco.com/c/en/us/products/security/' },
       ],
+      startDate: new Date(),
+      endDate: addMonths(new Date(), 1),
     },
   ];
 
@@ -280,6 +293,8 @@ async function main() {
       isGeorgia: true,
       date: new Date('2025-01-20T18:00:00'),
       location: 'თბილისი, GMT Plaza',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 7),
     },
     {
       slug: 'ai-workshop',
@@ -305,6 +320,8 @@ async function main() {
       isGeorgia: false,
       date: new Date('2025-02-01T19:00:00'),
       location: 'ონლაინ',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 1),
     },
     {
       slug: 'figma-workshop',
@@ -329,6 +346,8 @@ async function main() {
       isGeorgia: true,
       date: new Date('2025-03-05T18:00:00'),
       location: 'თბილისი, Innovation Hub',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 3),
     },
     {
       slug: 'react-workshop',
@@ -353,6 +372,8 @@ async function main() {
       isGeorgia: true,
       date: new Date('2025-03-15T18:00:00'),
       location: 'ონლაინ',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 1),
     },
     {
       slug: 'machine-learning-workshop',
@@ -377,6 +398,8 @@ async function main() {
       isGeorgia: false,
       date: new Date('2025-04-01T19:00:00'),
       location: 'ონლაინ',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 1),
     },
     {
       slug: 'cybersecurity-workshop',
@@ -401,6 +424,8 @@ async function main() {
       isGeorgia: true,
       date: new Date('2025-04-10T18:00:00'),
       location: 'თბილისი, TechPark',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 2),
     },
   ];
 
