@@ -55,13 +55,13 @@ model Course {
   languageEn       String
   startDate        DateTime?    
   endDate          DateTime?    
-  status           String      
+  status           String?      
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?
   mentorEn         String?
   date             DateTime?
-  location         String?
+  location         String?c
   videos           Video[]
   materials        Material[]
   createdAt        DateTime     @default(now())
