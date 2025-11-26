@@ -53,6 +53,9 @@ model Course {
   formatEn         String
   languageKa       String
   languageEn       String
+  startDate        DateTime?    
+  endDate          DateTime?    
+  status           String      
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?
