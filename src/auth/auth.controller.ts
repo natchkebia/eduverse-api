@@ -34,12 +34,10 @@ export class AuthController {
     return this.authService.login(email, password);
   }
 
-
   @Post('forgot-password')
   async forgotPassword(@Body('email') email: string) {
     return this.authService.forgotPassword(email);
   }
-
 
   @Post('reset-password')
   async resetPassword(
@@ -71,5 +69,9 @@ export class AuthController {
     const user = await this.authService.validateOAuthUser(req.user);
     const token = this.authService.createOAuthToken(user);
     return res.redirect(`http://localhost:3001/oauth?token=${token}`);
+  }
+  @Post('verify-email')
+  async verifyEmail(@Body('token') token: string) {
+    return this.authService.verifyEmail(token);
   }
 }

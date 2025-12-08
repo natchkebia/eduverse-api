@@ -14,7 +14,6 @@ import { Resend } from 'resend';
 @Injectable()
 export class AuthService {
   constructor(private prisma: PrismaService) {}
-
   async register(
     email: string,
     password: string,
@@ -32,8 +31,8 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await this.prisma.user.create({
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
@@ -42,16 +41,26 @@ export class AuthService {
         phone: phone || null,
         role: Role.STUDENT,
         provider: 'local',
+        verified: false,
+        verificationToken,
+        verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' },
-    );
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const verifyUrl = `${process.env.NEXT_PUBLIC_URL}/verify-email?token=${verificationToken}`;
 
-    return { accessToken: token };
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'Confirm your email',
+      html: `
+        <h3>Welcome to Eduverse!</h3>
+        <p>დაადასტურე შენი ელფოსტა რომ გააგრძელო:</p>
+        <a href="${verifyUrl}">${verifyUrl}</a>
+      `,
+    });
+    return { success: true };
   }
 
   async login(email: string, password: string) {
@@ -60,6 +69,11 @@ export class AuthService {
     });
 
     if (!user) throw new UnauthorizedException('მომხმარებელი ვერ მოიძებნა');
+    if (user.provider === 'local' && !user.verified) {
+      throw new UnauthorizedException(
+        'გთხოვთ დაადასტუროთ ელფოსტა და შემდეგ გაიაროთ ავტორიზაცია.',
+      );
+    }
 
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) throw new UnauthorizedException('პაროლი არასწორია');
@@ -73,12 +87,38 @@ export class AuthService {
     return { accessToken: token };
   }
 
+  async verifyEmail(token: string) {
+    if (!token) {
+      throw new BadRequestException('Token is required');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        verificationToken: token,
+        verificationExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Token invalid or expired');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        verified: true,
+        verificationToken: null,
+        verificationExpires: null,
+      },
+    });
+
+    return { success: true };
+  }
 
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
-
 
     if (!user) {
       return { success: true };
@@ -156,6 +196,7 @@ export class AuthService {
           surname: oauthUser.surname || null,
           avatar: oauthUser.avatar || null,
           provider: oauthUser.provider,
+          verified: true,
           role: Role.STUDENT,
         },
       });
@@ -165,6 +206,7 @@ export class AuthService {
       data: {
         provider: oauthUser.provider,
         avatar: oauthUser.avatar || existing.avatar,
+        verified: true,
       },
     });
   }
