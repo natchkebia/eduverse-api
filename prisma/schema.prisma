@@ -28,6 +28,8 @@ model User {
   role      Role     @default(STUDENT)
   provider  String?
   avatar    String?
+  resetToken         String?           
+  resetTokenExpires  DateTime?  
   createdAt DateTime @default(now())
 }
 
@@ -61,7 +63,7 @@ model Course {
   mentorKa         String?
   mentorEn         String?
   date             DateTime?
-  location         String?c
+  location         String?
   videos           Video[]
   materials        Material[]
   createdAt        DateTime     @default(now())

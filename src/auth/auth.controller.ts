@@ -34,11 +34,25 @@ export class AuthController {
     return this.authService.login(email, password);
   }
 
+
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('password') password: string,
+  ) {
+    return this.authService.resetPassword(token, password);
+  }
+
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleLogin() {
-  }
-  
+  async googleLogin() {}
+
   @Get('google/redirect')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req, @Res() res: Response) {
@@ -49,8 +63,7 @@ export class AuthController {
 
   @Get('facebook')
   @UseGuards(AuthGuard('facebook'))
-  async facebookLogin() {
-  }
+  async facebookLogin() {}
 
   @Get('facebook/redirect')
   @UseGuards(AuthGuard('facebook'))
