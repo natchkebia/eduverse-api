@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('STUDENT', 'INSTRUCTOR', 'ADMIN');
+CREATE TYPE "Role" AS ENUM ('STUDENT', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "CourseType" AS ENUM ('COURSE', 'WORKSHOP', 'MASTERCLASS');
@@ -8,11 +8,18 @@ CREATE TYPE "CourseType" AS ENUM ('COURSE', 'WORKSHOP', 'MASTERCLASS');
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
+    "password" TEXT,
     "name" TEXT NOT NULL,
     "surname" TEXT,
     "phone" TEXT,
     "role" "Role" NOT NULL DEFAULT 'STUDENT',
+    "provider" TEXT,
+    "avatar" TEXT,
+    "resetToken" TEXT,
+    "resetTokenExpires" TIMESTAMP(3),
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "verificationToken" TEXT,
+    "verificationExpires" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
@@ -25,7 +32,7 @@ CREATE TABLE "Course" (
     "type" "CourseType" NOT NULL DEFAULT 'COURSE',
     "originalPrice" INTEGER NOT NULL,
     "discountedPrice" INTEGER NOT NULL,
-    "discount" TEXT NOT NULL,
+    "discount" TEXT,
     "imageUrl" TEXT NOT NULL,
     "isOnline" BOOLEAN NOT NULL DEFAULT false,
     "isGeorgia" BOOLEAN NOT NULL DEFAULT true,
@@ -41,6 +48,9 @@ CREATE TABLE "Course" (
     "formatEn" TEXT NOT NULL,
     "languageKa" TEXT NOT NULL,
     "languageEn" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
+    "status" TEXT,
     "syllabusKa" TEXT,
     "syllabusEn" TEXT,
     "mentorKa" TEXT,

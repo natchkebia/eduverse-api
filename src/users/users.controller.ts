@@ -7,7 +7,12 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
+
 import { UsersService } from './users.service';
 import * as bcrypt from 'bcrypt';
 
@@ -15,12 +20,22 @@ import * as bcrypt from 'bcrypt';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // ⭐ ADMIN ONLY — Get full users list
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get()
+  async getAllUsers() {
+    return this.usersService.getAllUsers();
+  }
+
+  // ⭐ Get logged-in user
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@Req() req) {
     return this.usersService.getMe(req.user.id);
   }
 
+  // ⭐ Change password
   @UseGuards(JwtAuthGuard)
   @Patch('change-password')
   async changePassword(
