@@ -1,3 +1,7 @@
+import { IsInt, Min } from 'class-validator';
+
 export class ExtendCourseDto {
-  duration: number; 
+  @IsInt()
+  @Min(1)
+  days: number; // 👉 რამდენი დღით გავზარდოთ
 }

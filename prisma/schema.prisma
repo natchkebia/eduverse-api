@@ -18,22 +18,29 @@ enum CourseType {
   MASTERCLASS
 }
 
+enum CourseStatus {
+  ACTIVE
+  EXPIRING
+  EXPIRED
+  ARCHIVED
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String?
-  name      String
-  surname   String?
-  phone     String?  @unique
-  role      Role     @default(STUDENT)
-  provider  String?
-  avatar    String?
-  resetToken         String?           
-  resetTokenExpires  DateTime?  
-  verified            Boolean   @default(false)
-  verificationToken   String?
-  verificationExpires DateTime?
-  createdAt DateTime @default(now())
+  id                   String   @id @default(uuid())
+  email                String   @unique
+  password             String?
+  name                 String
+  surname              String?
+  phone                String?  @unique
+  role                 Role     @default(STUDENT)
+  provider             String?
+  avatar               String?
+  resetToken           String?
+  resetTokenExpires    DateTime?
+  verified             Boolean  @default(false)
+  verificationToken    String?
+  verificationExpires  DateTime?
+  createdAt            DateTime @default(now())
 }
 
 model Course {
@@ -58,9 +65,9 @@ model Course {
   formatEn         String
   languageKa       String
   languageEn       String
-  startDate        DateTime?    
-  endDate          DateTime?    
-  status           String?      
+  startDate        DateTime?
+  endDate          DateTime?
+  status           CourseStatus @default(ACTIVE)
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?

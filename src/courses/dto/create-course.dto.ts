@@ -1,11 +1,14 @@
 import { CourseType } from '@prisma/client';
+import { IsInt, Min } from 'class-validator';
 
 export class CreateCourseDto {
   slug: string;
   type?: CourseType;
+
   originalPrice: number;
   discountedPrice: number;
   imageUrl: string;
+
   titleKa: string;
   titleEn: string;
   descriptionKa: string;
@@ -18,5 +21,8 @@ export class CreateCourseDto {
   formatEn: string;
   languageKa: string;
   languageEn: string;
-  duration: number;
+
+  @IsInt()
+  @Min(1)
+  duration: number; // 👉 რამდენი დღე გაგრძელდეს თავიდან
 }
