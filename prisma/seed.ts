@@ -260,8 +260,8 @@ async function main() {
       languageKa: 'ქართული',
       languageEn: 'Georgian',
       originalPrice: 100,
-      discountedPrice: 0,
-      discount: '100%',
+      discountedPrice: 90,
+      discount: '10%',
       imageUrl: '/images/educationPic.webp',
       isOnline: true,
       isGeorgia: true,
@@ -269,8 +269,8 @@ async function main() {
       syllabusEn: 'Test syllabus',
       mentorKa: 'Test Mentor',
       mentorEn: 'Test Mentor',
-      startDate: new Date('2025-11-01'),
-      endDate: new Date(Date.now() - 1000 * 60 * 60), 
+      startDate: new Date(),
+      endDate: addDays(new Date(), 2),
     },
   ];
 
