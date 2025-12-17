@@ -25,6 +25,19 @@ enum CourseStatus {
   ARCHIVED
 }
 
+/**
+ * User-submitted listing lifecycle (pre-publish).
+ * Separate from CourseStatus to keep existing logic intact.
+ */
+enum CourseRequestStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
 model User {
   id                   String   @id @default(uuid())
   email                String   @unique
@@ -41,43 +54,86 @@ model User {
   verificationToken    String?
   verificationExpires  DateTime?
   createdAt            DateTime @default(now())
+
+  // User-created course requests
+  courseRequests       CourseRequest[]
 }
 
 model Course {
   id               Int          @id @default(autoincrement())
   slug             String       @unique
   type             CourseType   @default(COURSE)
+
   originalPrice    Int
   discountedPrice  Int
   discount         String?
+
   imageUrl         String
   isOnline         Boolean      @default(false)
   isGeorgia        Boolean      @default(true)
+
   titleKa          String
   titleEn          String
   descriptionKa    String
   descriptionEn    String
+
   altTextKa        String
   altTextEn        String
+
   buttonKa         String
   buttonEn         String
   formatKa         String
   formatEn         String
   languageKa       String
   languageEn       String
+
   startDate        DateTime?
   endDate          DateTime?
   status           CourseStatus @default(ACTIVE)
+
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?
   mentorEn         String?
   date             DateTime?
   location         String?
+
   videos           Video[]
   materials        Material[]
+
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+}
+
+/**
+ * Stores user submissions BEFORE they become real Courses.
+ * Admin approval creates Course from this record.
+ */
+model CourseRequest {
+  id               String              @id @default(uuid())
+
+  creatorId        String
+  creator          User                @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  type             CourseType          @default(COURSE)
+
+  titleKa          String
+  titleEn          String?
+  descriptionKa    String
+  descriptionEn    String?
+  imageUrl         String?
+
+  // STEP 2 – filled later
+  days             Int?
+  price            Int?
+
+  status           CourseRequestStatus @default(DRAFT)
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([creatorId])
+  @@index([status])
 }
 
 model Video {

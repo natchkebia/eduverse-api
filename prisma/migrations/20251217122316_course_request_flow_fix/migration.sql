@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "CourseRequest" ALTER COLUMN "days" DROP NOT NULL,
+ALTER COLUMN "price" DROP NOT NULL;

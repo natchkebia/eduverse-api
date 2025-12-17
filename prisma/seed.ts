@@ -24,6 +24,35 @@ async function main() {
   } else {
     console.log('⚠️ Admin already exists');
   }
+    /* ========================= */
+  /* FAKE STUDENT USER */
+  /* ========================= */
+
+  const studentEmail = 'student@test.com';
+
+  const existingStudent = await prisma.user.findUnique({
+    where: { email: studentEmail },
+  });
+
+  if (!existingStudent) {
+    const hashedPassword = await bcrypt.hash('Student123!', 10);
+
+    await prisma.user.create({
+      data: {
+        email: studentEmail,
+        password: hashedPassword,
+        name: 'Test',
+        surname: 'Student',
+        role: Role.STUDENT, // 👈 ზუსტად schema-ს მიხედვით
+        verified: true,
+      },
+    });
+
+    console.log('✅ Fake STUDENT user created');
+  } else {
+    console.log('⚠️ Fake STUDENT already exists');
+  }
+
   const courses = [
     {
       slug: 'frontend-development',
