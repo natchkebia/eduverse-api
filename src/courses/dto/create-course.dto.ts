@@ -24,5 +24,5 @@ export class CreateCourseDto {
 
   @IsInt()
   @Min(1)
-  duration: number; // 👉 რამდენი დღე გაგრძელდეს თავიდან
+  duration: number; 
 }

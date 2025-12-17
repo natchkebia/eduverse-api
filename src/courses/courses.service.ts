@@ -2,16 +2,31 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { addDays, addHours } from 'date-fns';
-import { CourseStatus } from '@prisma/client';
+import { CourseStatus, CourseType } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
-  // ========================
-  // USER – მხოლოდ აქტიური
-  // ========================
+  async getPublicCourses(type?: CourseType) {
+    return this.prisma.course.findMany({
+      where: {
+        status: {
+          in: [CourseStatus.ACTIVE, CourseStatus.EXPIRING],
+        },
+        ...(type ? { type } : {}),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        videos: true,
+        materials: true,
+      },
+    });
+  }
+
   async getActiveCourses() {
     return this.prisma.course.findMany({
       where: {
@@ -24,9 +39,6 @@ export class CoursesService {
     });
   }
 
-  // ========================
-  // ADMIN – ვადა ეწურება
-  // ========================
   async getExpiringCourses() {
     return this.prisma.course.findMany({
       where: {
@@ -39,9 +51,6 @@ export class CoursesService {
     });
   }
 
-  // ========================
-  // ADMIN – არქივირებული
-  // ========================
   async getArchivedCourses() {
     return this.prisma.course.findMany({
       where: {
@@ -56,9 +65,6 @@ export class CoursesService {
     });
   }
 
-  // ========================
-  // საერთო
-  // ========================
   async findOneById(id: number) {
     return this.prisma.course.findUnique({
       where: { id },
@@ -79,9 +85,6 @@ export class CoursesService {
     });
   }
 
-  // ========================
-  // ADMIN – შექმნა
-  // ========================
   async createCourse(data: CreateCourseDto) {
     return this.prisma.course.create({
       data: {
@@ -93,9 +96,6 @@ export class CoursesService {
     });
   }
 
-  // ========================
-  // ADMIN – გაგრძელება
-  // ========================
   async extendCourse(id: number, duration: number) {
     const course = await this.prisma.course.findUnique({
       where: { id },
@@ -114,15 +114,11 @@ export class CoursesService {
     });
   }
 
-  // ========================
-  // 🔥 CRON JOB – ავტომატური სტატუსები
-  // ========================
   @Cron(CronExpression.EVERY_10_MINUTES)
   async updateCourseStatuses() {
     const now = new Date();
     const in24Hours = addHours(now, 24);
 
-    // 1️⃣ ACTIVE → EXPIRING
     await this.prisma.course.updateMany({
       where: {
         status: CourseStatus.ACTIVE,
@@ -136,7 +132,6 @@ export class CoursesService {
       },
     });
 
-    // 2️⃣ EXPIRING → EXPIRED
     await this.prisma.course.updateMany({
       where: {
         status: CourseStatus.EXPIRING,

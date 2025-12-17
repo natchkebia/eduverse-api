@@ -7,7 +7,9 @@ import {
   Body,
   Patch,
   UseGuards,
+  Query,
 } from '@nestjs/common';
+
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { ExtendCourseDto } from './dto/extend-course.dto';
@@ -15,15 +17,34 @@ import { ExtendCourseDto } from './dto/extend-course.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role, CourseType } from '@prisma/client';
 
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
+  
+  @Get('public')
+  getPublicCourses(@Query('type') type?: CourseType) {
+    return this.coursesService.getPublicCourses(type);
+  }
 
   @Get('active')
   async getActiveCourses() {
     return this.coursesService.getActiveCourses();
+  }
+
+  @Get('admin/expiring')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async getExpiringCourses() {
+    return this.coursesService.getExpiringCourses();
+  }
+
+  @Get('admin/archived')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async getArchivedCourses() {
+    return this.coursesService.getArchivedCourses();
   }
 
   @Get('id/:id')
@@ -44,20 +65,6 @@ export class CoursesController {
     return course;
   }
 
-  @Get('admin/expiring')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  async getExpiringCourses() {
-    return this.coursesService.getExpiringCourses();
-  }
-
-  @Get('admin/archived')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  async getArchivedCourses() {
-    return this.coursesService.getArchivedCourses();
-  }
-
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -72,6 +79,6 @@ export class CoursesController {
     @Param('id') id: string,
     @Body() body: ExtendCourseDto,
   ) {
-    return this.coursesService.extendCourse(Number(id), body.days);
+    return this.coursesService.extendCourse(Number(id), body.duration);
   }
 }
