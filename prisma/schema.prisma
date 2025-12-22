@@ -55,7 +55,6 @@ model User {
   verificationExpires  DateTime?
   createdAt            DateTime @default(now())
 
-  // User-created course requests
   courseRequests       CourseRequest[]
 }
 
@@ -122,6 +121,10 @@ model CourseRequest {
   descriptionKa    String
   descriptionEn    String?
   imageUrl         String?
+
+  // ✅ syllabus only for COURSE (front will only send for course)
+  syllabusKa       String?
+  syllabusEn       String?
 
   // STEP 2 – filled later
   days             Int?

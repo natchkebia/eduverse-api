@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CourseRequestStatus, CourseStatus } from '@prisma/client';
+import { CourseRequestStatus, CourseStatus, CourseType } from '@prisma/client';
 import { addDays } from 'date-fns';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
 
@@ -19,18 +19,27 @@ export class CourseRequestsService {
         creator: {
           connect: { id: userId },
         },
+
         type: dto.type,
+
         titleKa: dto.titleKa,
         titleEn: dto.titleEn,
+
         descriptionKa: dto.descriptionKa,
         descriptionEn: dto.descriptionEn,
+
         imageUrl: dto.imageUrl,
+
+        // ✅ syllabus only for COURSE
+        syllabusKa: dto.type === CourseType.COURSE ? dto.syllabusKa : null,
+        syllabusEn: dto.type === CourseType.COURSE ? dto.syllabusEn : null,
+
         status: CourseRequestStatus.DRAFT,
       },
     });
   }
 
-  // STEP 2 — USER sets days + price
+  // STEP 2 — USER sets days + price (moves to PENDING_PAYMENT)
   async setDetails(
     requestId: string,
     userId: string,
@@ -54,7 +63,7 @@ export class CourseRequestsService {
     });
   }
 
-  // STEP 3 — USER fake payment (later real bank)
+  // STEP 3 — USER fake payment (later real bank) -> PAID
   async markAsPaid(requestId: string, userId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
@@ -69,7 +78,7 @@ export class CourseRequestsService {
     });
   }
 
-  // STEP 4 — USER submits to admin
+  // STEP 4 — USER submits to admin -> PENDING_APPROVAL
   async submitForApproval(requestId: string, userId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
@@ -78,9 +87,21 @@ export class CourseRequestsService {
     if (!request) throw new NotFoundException('Course request not found');
     if (request.creatorId !== userId) throw new ForbiddenException();
 
-    if (request.status !== CourseRequestStatus.PAID) {
-      throw new ForbiddenException('Payment required');
+    // ✅ ჯერ Step2 უნდა ჰქონდეს შევსებული
+    if (!request.days || !request.price) {
+      throw new ForbiddenException('Fill details first');
     }
+      // if (request.status !== CourseRequestStatus.PAID) {
+    //   throw new ForbiddenException('Payment required');
+    // }
+
+    // თუ გადახდას დროებით არ იყენებ, ესეც OK:
+    // - Step2 -> PENDING_PAYMENT
+    // - submit -> PENDING_APPROVAL
+    // მაგრამ სურვილისამებრ შეგიძლია ჩართო გადახდის ჩეკი:
+    // if (request.status !== CourseRequestStatus.PAID) {
+    //   throw new ForbiddenException('Payment required');
+    // }
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },
@@ -97,21 +118,28 @@ export class CourseRequestsService {
     });
   }
 
-  // ADMIN — approve and create real Course
+  // ADMIN — approve: create real Course (ACTIVE) and mark request APPROVED
   async approve(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
 
     if (!request) throw new NotFoundException('Course request not found');
+
     if (!request.days || !request.price) {
       throw new ForbiddenException('Days or price missing');
+    }
+
+    // ✅ COURSE-ზე syllabusKa სავალდებულო (თუ გინდა)
+    if (request.type === CourseType.COURSE && !request.syllabusKa) {
+      throw new ForbiddenException('Syllabus is required for course');
     }
 
     await this.prisma.course.create({
       data: {
         slug: `${(request.titleEn ?? request.titleKa)
           .toLowerCase()
+          .trim()
           .replace(/\s+/g, '-')}-${Date.now()}`,
 
         type: request.type,
@@ -141,6 +169,10 @@ export class CourseRequestsService {
         endDate: addDays(new Date(), request.days),
 
         status: CourseStatus.ACTIVE,
+
+        // ✅ COURSE-ზე გადაიტანს, WORKSHOP-ზე null დარჩება
+        syllabusKa: request.type === CourseType.COURSE ? request.syllabusKa : null,
+        syllabusEn: request.type === CourseType.COURSE ? request.syllabusEn : null,
       },
     });
 
@@ -164,3 +196,6 @@ export class CourseRequestsService {
     });
   }
 }
+
+  
+   
