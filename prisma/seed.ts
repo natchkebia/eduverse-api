@@ -24,7 +24,7 @@ async function main() {
   } else {
     console.log('⚠️ Admin already exists');
   }
-    /* ========================= */
+  /* ========================= */
   /* FAKE STUDENT USER */
   /* ========================= */
 
