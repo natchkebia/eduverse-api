@@ -234,7 +234,7 @@ async function main() {
         { link: 'https://scikit-learn.org' },
       ],
       startDate: new Date(),
-      endDate: addMonths(new Date(), 1),
+      endDate:  addDays(new Date(), 1),
     },
     {
       slug: 'cybersecurity',
