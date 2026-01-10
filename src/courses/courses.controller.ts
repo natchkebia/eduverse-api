@@ -22,7 +22,21 @@ import { Role, CourseType } from '@prisma/client';
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
-  
+
+  /** -------------------------
+   * 🔍 PUBLIC SEARCH ENDPOINT
+   * ------------------------- */
+  @Get('search')
+  async searchCourses(
+    @Query('query') query: string,
+    @Query('locale') locale: string = 'ka',
+  ) {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+    return this.coursesService.searchCourses(query, locale);
+  }
+
   @Get('public')
   getPublicCourses(@Query('type') type?: CourseType) {
     return this.coursesService.getPublicCourses(type);

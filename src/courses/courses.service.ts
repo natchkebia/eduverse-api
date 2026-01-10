@@ -9,6 +9,27 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
+  /** -------------------------
+   * 🔍 DATABASE SEARCH LOGIC
+   * ------------------------- */
+  async searchCourses(query: string, locale: string) {
+    return this.prisma.course.findMany({
+      where: {
+        OR: [
+          { titleKa: { contains: query, mode: 'insensitive' } },
+          { titleEn: { contains: query, mode: 'insensitive' } },
+          { descriptionKa: { contains: query, mode: 'insensitive' } },
+          { descriptionEn: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        videos: true,
+        materials: true,
+      },
+    });
+  }
+
   async getPublicCourses(type?: CourseType) {
     return this.prisma.course.findMany({
       where: {
