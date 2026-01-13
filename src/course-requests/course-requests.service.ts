@@ -16,24 +16,15 @@ export class CourseRequestsService {
   async createDraft(userId: string, dto: CreateCourseRequestDto) {
     return this.prisma.courseRequest.create({
       data: {
-        creator: {
-          connect: { id: userId },
-        },
-
+        creator: { connect: { id: userId } },
         type: dto.type,
-
         titleKa: dto.titleKa,
         titleEn: dto.titleEn,
-
         descriptionKa: dto.descriptionKa,
         descriptionEn: dto.descriptionEn,
-
         imageUrl: dto.imageUrl,
-
-        // ✅ syllabus only for COURSE
         syllabusKa: dto.type === CourseType.COURSE ? dto.syllabusKa : null,
         syllabusEn: dto.type === CourseType.COURSE ? dto.syllabusEn : null,
-
         status: CourseRequestStatus.DRAFT,
       },
     });
@@ -49,7 +40,6 @@ export class CourseRequestsService {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-
     if (!request) throw new NotFoundException('Course request not found');
     if (request.creatorId !== userId) throw new ForbiddenException();
 
@@ -63,12 +53,11 @@ export class CourseRequestsService {
     });
   }
 
-  // STEP 3 — USER fake payment (later real bank) -> PAID
+  // STEP 3 — USER fake payment (optional)
   async markAsPaid(requestId: string, userId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-
     if (!request) throw new NotFoundException('Course request not found');
     if (request.creatorId !== userId) throw new ForbiddenException();
 
@@ -79,58 +68,56 @@ export class CourseRequestsService {
   }
 
   // STEP 4 — USER submits to admin -> PENDING_APPROVAL
-  async submitForApproval(requestId: string, userId: string) {
-    const request = await this.prisma.courseRequest.findUnique({
-      where: { id: requestId },
-    });
+async submitForApproval(requestId: string, userId: string) {
+  const request = await this.prisma.courseRequest.findUnique({
+    where: { id: requestId },
+  });
+  if (!request) throw new NotFoundException('Course request not found');
+  if (request.creatorId !== userId) throw new ForbiddenException();
 
-    if (!request) throw new NotFoundException('Course request not found');
-    if (request.creatorId !== userId) throw new ForbiddenException();
-
-    // ✅ ჯერ Step2 უნდა ჰქონდეს შევსებული
+  // მხოლოდ COURSE-სთვის days & price სავალდებულოა
+  if (request.type === CourseType.COURSE) {
     if (!request.days || !request.price) {
-      throw new ForbiddenException('Fill details first');
+      throw new ForbiddenException('Fill details first (days & price required)');
     }
-      // if (request.status !== CourseRequestStatus.PAID) {
-    //   throw new ForbiddenException('Payment required');
-    // }
-
-    // თუ გადახდას დროებით არ იყენებ, ესეც OK:
-    // - Step2 -> PENDING_PAYMENT
-    // - submit -> PENDING_APPROVAL
-    // მაგრამ სურვილისამებრ შეგიძლია ჩართო გადახდის ჩეკი:
-    // if (request.status !== CourseRequestStatus.PAID) {
-    //   throw new ForbiddenException('Payment required');
-    // }
-
-    return this.prisma.courseRequest.update({
-      where: { id: requestId },
-      data: { status: CourseRequestStatus.PENDING_APPROVAL },
-    });
   }
 
-  // ADMIN — list pending requests
-  async getPendingRequests() {
-    return this.prisma.courseRequest.findMany({
-      where: { status: CourseRequestStatus.PENDING_APPROVAL },
-      include: { creator: true },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+  // WORKSHOP-ს შეუძლია პირდაპირ PENDING_APPROVAL
+  return this.prisma.courseRequest.update({
+    where: { id: requestId },
+    data: { status: CourseRequestStatus.PENDING_APPROVAL },
+  });
+}
 
-  // ADMIN — approve: create real Course (ACTIVE) and mark request APPROVED
+
+// ADMIN — list all requests (ყველა სტატუსი, სატესტო რეჟიმი)
+async getPendingRequests() {
+  return this.prisma.courseRequest.findMany({
+    where: {
+      OR: [
+        { status: { in: [
+            CourseRequestStatus.DRAFT,
+            CourseRequestStatus.PENDING_PAYMENT,
+            CourseRequestStatus.PAID,
+            CourseRequestStatus.PENDING_APPROVAL,
+          ] } },
+        { type: CourseType.WORKSHOP } // ყველა workshop regardless of status
+      ],
+    },
+    include: { creator: true },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+
+  // ADMIN — approve: create real Course/Workshop and mark request APPROVED
   async approve(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-
     if (!request) throw new NotFoundException('Course request not found');
-
-    if (!request.days || !request.price) {
+    if (!request.days || !request.price)
       throw new ForbiddenException('Days or price missing');
-    }
-
-    // ✅ COURSE-ზე syllabusKa სავალდებულო (თუ გინდა)
     if (request.type === CourseType.COURSE && !request.syllabusKa) {
       throw new ForbiddenException('Syllabus is required for course');
     }
@@ -141,38 +128,29 @@ export class CourseRequestsService {
           .toLowerCase()
           .trim()
           .replace(/\s+/g, '-')}-${Date.now()}`,
-
         type: request.type,
-
-        originalPrice: request.price,
-        discountedPrice: request.price,
-
-        imageUrl: request.imageUrl ?? '',
-
         titleKa: request.titleKa,
         titleEn: request.titleEn ?? request.titleKa,
-
         descriptionKa: request.descriptionKa,
         descriptionEn: request.descriptionEn ?? request.descriptionKa,
-
+        originalPrice: request.price,
+        discountedPrice: request.price,
+        imageUrl: request.imageUrl ?? '',
         altTextKa: request.titleKa,
         altTextEn: request.titleEn ?? request.titleKa,
-
         buttonKa: 'დარეგისტრირება',
         buttonEn: 'Register',
         formatKa: 'ონლაინ',
         formatEn: 'Online',
         languageKa: 'ქართული',
         languageEn: 'Georgian',
-
         startDate: new Date(),
         endDate: addDays(new Date(), request.days),
-
         status: CourseStatus.ACTIVE,
-
-        // ✅ COURSE-ზე გადაიტანს, WORKSHOP-ზე null დარჩება
-        syllabusKa: request.type === CourseType.COURSE ? request.syllabusKa : null,
-        syllabusEn: request.type === CourseType.COURSE ? request.syllabusEn : null,
+        syllabusKa:
+          request.type === CourseType.COURSE ? request.syllabusKa : null,
+        syllabusEn:
+          request.type === CourseType.COURSE ? request.syllabusEn : null,
       },
     });
 
@@ -187,7 +165,6 @@ export class CourseRequestsService {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-
     if (!request) throw new NotFoundException('Course request not found');
 
     return this.prisma.courseRequest.update({
@@ -196,6 +173,3 @@ export class CourseRequestsService {
     });
   }
 }
-
-  
-   

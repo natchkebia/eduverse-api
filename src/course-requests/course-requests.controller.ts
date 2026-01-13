@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Post,
-  Patch,
-  Get,
-  Param,
-  Body,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Post, Patch, Get, Param, Body, Req, UseGuards } from '@nestjs/common';
 import { CourseRequestsService } from './course-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -30,15 +21,11 @@ export class CourseRequestsController {
   // USER — set days & price
   @Patch(':id/details')
   @UseGuards(JwtAuthGuard)
-  setDetails(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body() dto: SetCourseRequestDetailsDto,
-  ) {
+  setDetails(@Req() req: any, @Param('id') id: string, @Body() dto: SetCourseRequestDetailsDto) {
     return this.service.setDetails(id, req.user.id, dto.days, dto.price);
   }
 
-  // USER — fake payment
+  // USER — fake payment (optional)
   @Patch(':id/pay')
   @UseGuards(JwtAuthGuard)
   pay(@Req() req: any, @Param('id') id: string) {
