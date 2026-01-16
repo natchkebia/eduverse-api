@@ -38,24 +38,56 @@ enum CourseRequestStatus {
   REJECTED
 }
 
-model User {
-  id                   String   @id @default(uuid())
-  email                String   @unique
-  password             String?
-  name                 String
-  surname              String?
-  phone                String?  @unique
-  role                 Role     @default(STUDENT)
-  provider             String?
-  avatar               String?
-  resetToken           String?
-  resetTokenExpires    DateTime?
-  verified             Boolean  @default(false)
-  verificationToken    String?
-  verificationExpires  DateTime?
-  createdAt            DateTime @default(now())
+/** ✅ შენი 14 კატეგორია */
+enum CourseCategory {
+  TECHNOLOGY
+  DESIGN
+  ART
+  MARKETING
+  BUSINESS_MANAGEMENT
+  FINANCE
+  LANGUAGES
+  SCIENCE
+  PSYCHOLOGY
+  PERSONAL_DEVELOPMENT
+  HEALTH_WELLNESS
+  CRAFTS_HOBBIES
+  SPORTS
+  OTHER
+}
 
-  courseRequests       CourseRequest[]
+/** ✅ კურსის მიწოდების ტიპი */
+enum CourseDelivery {
+  LIVE
+  VIDEO
+}
+
+/** ✅ ფორმატი (online/onsite) */
+enum CourseFormat {
+  ONLINE
+  ONSITE
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  password            String?
+  name                String
+  surname             String?
+  phone               String?  @unique
+  role                Role     @default(STUDENT)
+  provider            String?
+  avatar              String?
+  resetToken          String?
+  resetTokenExpires   DateTime?
+  verified            Boolean  @default(false)
+  verificationToken   String?
+  verificationExpires DateTime?
+  createdAt           DateTime @default(now())
+
+  courseRequests      CourseRequest[]
+  courses             Course[] // ✅ სურვილისამებრ: approved კურსის owner/creator
+
 }
 
 model Course {
@@ -63,11 +95,23 @@ model Course {
   slug             String       @unique
   type             CourseType   @default(COURSE)
 
+  /** ✅ ახალი */
+  category         CourseCategory @default(OTHER)
+  delivery         CourseDelivery @default(LIVE)
+  format           CourseFormat   @default(ONLINE)
+
+  /** ✅ სურვილისამებრ owner */
+  creatorId        String?
+  creator          User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+
+  /** ფასი (შენი სტილით ვტოვებ) */
   originalPrice    Int
   discountedPrice  Int
   discount         String?
 
   imageUrl         String
+
+  /** ძველებიც დავტოვე რომ არაფერი დაგემტვრეს */
   isOnline         Boolean      @default(false)
   isGeorgia        Boolean      @default(true)
 
@@ -86,16 +130,23 @@ model Course {
   languageKa       String
   languageEn       String
 
+  /**
+   * LIVE COURSE → startDate
+   * WORKSHOP/MASTERCLASS → date
+   * VIDEO COURSE → ორივე შეიძლება null იყოს, მაგრამ videos უნდა ჰქონდეს
+   */
   startDate        DateTime?
   endDate          DateTime?
+  date             DateTime?
+
+  location         String?
+
   status           CourseStatus @default(ACTIVE)
 
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?
   mentorEn         String?
-  date             DateTime?
-  location         String?
 
   videos           Video[]
   materials        Material[]
@@ -116,19 +167,51 @@ model CourseRequest {
 
   type             CourseType          @default(COURSE)
 
+  /** ✅ ახალი: კატეგორია/მიწოდება/ფორმატი */
+  category         CourseCategory?
+  delivery         CourseDelivery?
+  format           CourseFormat?
+
   titleKa          String
   titleEn          String?
   descriptionKa    String
   descriptionEn    String?
   imageUrl         String?
 
-  // ✅ syllabus only for COURSE (front will only send for course)
+  /** ✅ COURSE-სთვის */
   syllabusKa       String?
   syllabusEn       String?
+  mentorKa         String?
+  mentorEn         String?
 
-  // STEP 2 – filled later
+  /** ✅ ენა (რადგან Course-ში გაქვს languageKa/languageEn) */
+  languageKa       String?
+  languageEn       String?
+
+  /** ✅ ფასები (შენი Course-ს სტილს რომ დაემთხვეს) */
+  originalPrice    Int?
+  discountedPrice  Int?
+  discount         String?
+
+  /** ✅ WORKSHOP/MASTERCLASS-სთვის */
+  date             DateTime?
+  location         String?
+
+  /** ✅ LIVE COURSE-სთვის */
+  startDate        DateTime?
+  endDate          DateTime?
+
+  /** ✅ Listing დღეები (შენ გაქვს days/price, ვტოვებ და თან უფრო კონკრეტულად ვამატებ) */
   days             Int?
+  listingDays      Int?
+  listingFee       Int?
+
+  /** ძველი price ვტოვებ backward compat-სთვის */
   price            Int?
+
+  /** VIDEO კურსის ვიდეოები — request-ზეაც შევინახოთ რომ approve-ზე გადავიტანოთ */
+  requestVideos    CourseRequestVideo[]
+  requestMaterials CourseRequestMaterial[]
 
   status           CourseRequestStatus @default(DRAFT)
 
@@ -143,12 +226,39 @@ model Video {
   id        Int     @id @default(autoincrement())
   url       String
   courseId  Int
-  course    Course  @relation(fields: [courseId], references: [id])
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
 }
 
 model Material {
   id        Int     @id @default(autoincrement())
   link      String
   courseId  Int
-  course    Course  @relation(fields: [courseId], references: [id])
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+}
+
+/** ✅ Request-ზე ვიდეოების შენახვა */
+model CourseRequestVideo {
+  id             Int          @id @default(autoincrement())
+  url            String
+  order          Int?
+
+  courseRequestId String
+  courseRequest   CourseRequest @relation(fields: [courseRequestId], references: [id], onDelete: Cascade)
+
+  @@index([courseRequestId])
+}
+
+/** ✅ Request-ზე მასალების შენახვა */
+model CourseRequestMaterial {
+  id              Int          @id @default(autoincrement())
+  link            String
+
+  courseRequestId String
+  courseRequest   CourseRequest @relation(fields: [courseRequestId], references: [id], onDelete: Cascade)
+
+  @@index([courseRequestId])
 }
