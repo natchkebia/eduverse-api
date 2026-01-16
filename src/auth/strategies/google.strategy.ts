@@ -5,12 +5,28 @@ import { Strategy, Profile } from 'passport-google-oauth20';
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor() {
-    super({
-      clientID: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL!,
-      scope: ['email', 'profile'],
-    });
+    const clientID = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const callbackURL =
+      process.env.GOOGLE_CALLBACK_URL ||
+      'http://localhost:3000/auth/google/redirect';
+
+    // ✅ თუ env არ გაქვს (dev-ში), Nest არ ჩამოვარდება
+    super(
+      clientID && clientSecret
+        ? {
+            clientID,
+            clientSecret,
+            callbackURL,
+            scope: ['email', 'profile'],
+          }
+        : {
+            clientID: 'disabled',
+            clientSecret: 'disabled',
+            callbackURL: 'disabled',
+            scope: [],
+          },
+    );
   }
 
   async validate(
@@ -28,13 +44,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       email: profile.emails[0].value,
       name:
         profile.name?.givenName ||
-        profile._json?.given_name ||
+        (profile as any)?._json?.given_name ||
         profile.displayName ||
         'User',
-
-      surname: profile.name?.familyName || profile._json?.family_name || null,
-
-      avatar: profile.photos?.[0]?.value || profile._json?.picture || null,
+      surname:
+        profile.name?.familyName || (profile as any)?._json?.family_name || null,
+      avatar: profile.photos?.[0]?.value || (profile as any)?._json?.picture || null,
     };
 
     done(null, user);

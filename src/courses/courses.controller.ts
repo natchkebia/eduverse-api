@@ -23,9 +23,23 @@ import { Role, CourseType } from '@prisma/client';
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
-  /** -------------------------
-   * 🔍 PUBLIC SEARCH ENDPOINT
-   * ------------------------- */
+  /**
+   * =========================
+   * ✅ ROOT ENDPOINT
+   * =========================
+   * ეს აგვარებს /courses 404-ს
+   * ფრონტში შეგიძლია პირდაპირ /courses გამოიძახო
+   */
+  @Get()
+  async getCourses(@Query('type') type?: CourseType) {
+    return this.coursesService.getPublicCourses(type);
+  }
+
+  /**
+   * =========================
+   * 🔍 SEARCH
+   * =========================
+   */
   @Get('search')
   async searchCourses(
     @Query('query') query: string,
@@ -37,6 +51,11 @@ export class CoursesController {
     return this.coursesService.searchCourses(query, locale);
   }
 
+  /**
+   * =========================
+   * 🌍 PUBLIC COURSES
+   * =========================
+   */
   @Get('public')
   getPublicCourses(@Query('type') type?: CourseType) {
     return this.coursesService.getPublicCourses(type);
@@ -47,6 +66,11 @@ export class CoursesController {
     return this.coursesService.getActiveCourses();
   }
 
+  /**
+   * =========================
+   * 🔐 ADMIN
+   * =========================
+   */
   @Get('admin/expiring')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -61,6 +85,11 @@ export class CoursesController {
     return this.coursesService.getArchivedCourses();
   }
 
+  /**
+   * =========================
+   * 📄 SINGLE COURSE
+   * =========================
+   */
   @Get('id/:id')
   async findOneById(@Param('id') id: string) {
     const course = await this.coursesService.findOneById(Number(id));
@@ -79,6 +108,11 @@ export class CoursesController {
     return course;
   }
 
+  /**
+   * =========================
+   * ✍️ CREATE / EXTEND
+   * =========================
+   */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
