@@ -24,21 +24,22 @@ export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   /**
-   * =========================
    * ✅ ROOT ENDPOINT
-   * =========================
-   * ეს აგვარებს /courses 404-ს
-   * ფრონტში შეგიძლია პირდაპირ /courses გამოიძახო
+   * Supports:
+   *  - /courses?type=COURSE&locale=ka
+   *  - /courses?type=WORKSHOP&locale=en
    */
   @Get()
-  async getCourses(@Query('type') type?: CourseType) {
-    return this.coursesService.getPublicCourses(type);
+  async getCourses(
+    @Query('type') type?: CourseType,
+    @Query('locale') locale: string = 'ka',
+  ) {
+    return this.coursesService.getPublicCourses(type, locale);
   }
 
   /**
-   * =========================
    * 🔍 SEARCH
-   * =========================
+   * /courses/search?query=react&locale=en
    */
   @Get('search')
   async searchCourses(
@@ -52,13 +53,15 @@ export class CoursesController {
   }
 
   /**
-   * =========================
    * 🌍 PUBLIC COURSES
-   * =========================
+   * /courses/public?type=COURSE&locale=en
    */
   @Get('public')
-  getPublicCourses(@Query('type') type?: CourseType) {
-    return this.coursesService.getPublicCourses(type);
+  getPublicCourses(
+    @Query('type') type?: CourseType,
+    @Query('locale') locale: string = 'ka',
+  ) {
+    return this.coursesService.getPublicCourses(type, locale);
   }
 
   @Get('active')
@@ -67,9 +70,7 @@ export class CoursesController {
   }
 
   /**
-   * =========================
    * 🔐 ADMIN
-   * =========================
    */
   @Get('admin/expiring')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -86,9 +87,7 @@ export class CoursesController {
   }
 
   /**
-   * =========================
    * 📄 SINGLE COURSE
-   * =========================
    */
   @Get('id/:id')
   async findOneById(@Param('id') id: string) {
@@ -109,9 +108,7 @@ export class CoursesController {
   }
 
   /**
-   * =========================
-   * ✍️ CREATE / EXTEND
-   * =========================
+   * ✍️ CREATE / EXTEND (ADMIN ONLY)
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)

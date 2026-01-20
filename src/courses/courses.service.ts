@@ -9,18 +9,26 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
-  /** -------------------------
-   * 🔍 DATABASE SEARCH LOGIC
-   * ------------------------- */
-  async searchCourses(query: string, locale: string) {
+  /**
+   * 🔍 SEARCH (locale-aware)
+   * - locale=ka -> search KA fields
+   * - locale=en -> search EN fields only, and return only EN-available courses
+   */
+  async searchCourses(query: string, locale: string = 'ka') {
+    const isEn = locale === 'en';
+
     return this.prisma.course.findMany({
       where: {
-        OR: [
-          { titleKa: { contains: query, mode: 'insensitive' } },
-          { titleEn: { contains: query, mode: 'insensitive' } },
-          { descriptionKa: { contains: query, mode: 'insensitive' } },
-          { descriptionEn: { contains: query, mode: 'insensitive' } },
-        ],
+        ...(isEn ? { titleEn: { not: null } } : {}),
+        OR: isEn
+          ? [
+              { titleEn: { contains: query, mode: 'insensitive' } },
+              { descriptionEn: { contains: query, mode: 'insensitive' } },
+            ]
+          : [
+              { titleKa: { contains: query, mode: 'insensitive' } },
+              { descriptionKa: { contains: query, mode: 'insensitive' } },
+            ],
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -30,13 +38,20 @@ export class CoursesService {
     });
   }
 
-  async getPublicCourses(type?: CourseType) {
+  /**
+   * 🌍 PUBLIC COURSES (locale-aware)
+   * - locale=en -> return only courses that have titleEn (EN version available)
+   */
+  async getPublicCourses(type?: CourseType, locale: string = 'ka') {
+    const isEn = locale === 'en';
+
     return this.prisma.course.findMany({
       where: {
         status: {
           in: [CourseStatus.ACTIVE, CourseStatus.EXPIRING],
         },
         ...(type ? { type } : {}),
+        ...(isEn ? { titleEn: { not: null } } : {}),
       },
       orderBy: {
         createdAt: 'desc',
@@ -106,6 +121,10 @@ export class CoursesService {
     });
   }
 
+  /**
+   * ✍️ CREATE (ADMIN)
+   * EN fields are optional now.
+   */
   async createCourse(data: CreateCourseDto) {
     return this.prisma.course.create({
       data: {
@@ -135,6 +154,9 @@ export class CoursesService {
     });
   }
 
+  /**
+   * ⏱️ STATUS CRON
+   */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async updateCourseStatuses() {
     const now = new Date();

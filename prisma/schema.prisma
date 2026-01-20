@@ -104,31 +104,32 @@ model Course {
   creatorId        String?
   creator          User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
-  /** ფასი (შენი სტილით ვტოვებ) */
+  /** ფასი */
   originalPrice    Int
   discountedPrice  Int
   discount         String?
 
   imageUrl         String
 
-  /** ძველებიც დავტოვე რომ არაფერი დაგემტვრეს */
+  /** ძველებიც დავტოვე რომ არაფერი დაგემტვრეს (მაგრამ ლოგიკაში არ დაეყრდნო) */
   isOnline         Boolean      @default(false)
   isGeorgia        Boolean      @default(true)
 
+  /** ✅ KA REQUIRED */
   titleKa          String
-  titleEn          String
   descriptionKa    String
-  descriptionEn    String
-
   altTextKa        String
-  altTextEn        String
-
   buttonKa         String
-  buttonEn         String
   formatKa         String
-  formatEn         String
   languageKa       String
-  languageEn       String
+
+  /** ✅ EN OPTIONAL (რადგან EN ვერსიაზე არ გამოჩნდეს თუ არაა შევსებული) */
+  titleEn          String?
+  descriptionEn    String?
+  altTextEn        String?
+  buttonEn         String?
+  formatEn         String?
+  languageEn       String?
 
   /**
    * LIVE COURSE → startDate
@@ -154,6 +155,7 @@ model Course {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }
+
 
 /**
  * Stores user submissions BEFORE they become real Courses.
