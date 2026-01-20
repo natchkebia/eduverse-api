@@ -1,513 +1,263 @@
-import { PrismaClient, CourseType, Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-import { addDays, addMonths } from 'date-fns';
+import { PrismaClient, CourseType, Role } from "@prisma/client";
+import * as bcrypt from "bcrypt";
+import { addDays, addMonths } from "date-fns";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const adminEmail = 'tamarnatchkebia2@gmail.com';
+function assertDevSeedAllowed() {
+  // ✅ production-ზე საერთოდ არ ვუშვებთ seed-ს
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("❌ Seeding is disabled in production.");
+  }
+
+  // ✅ სურვილისამებრ: თუ გინდა უფრო მკაცრი, ჩართე ALLOW_SEED=true
+  // if (process.env.ALLOW_SEED !== "true") {
+  //   throw new Error("❌ Set ALLOW_SEED=true to run seed.");
+  // }
+}
+
+async function upsertAdmin() {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.log("ℹ️ ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin seed.");
+    return;
+  }
+
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
   });
+
   if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('Tamnatch1!', 10);
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
     await prisma.user.create({
       data: {
         email: adminEmail,
         password: hashedPassword,
-        name: 'tamar',
-        surname: 'natchkebia',
+        name: process.env.ADMIN_NAME || "Admin",
+        surname: process.env.ADMIN_SURNAME || null,
         role: Role.ADMIN,
+        verified: true,
       },
     });
-    console.log('✅ Admin user created');
+    console.log("✅ Admin user created");
   } else {
-    console.log('⚠️ Admin already exists');
+    console.log("⚠️ Admin already exists");
   }
-  /* ========================= */
-  /* FAKE STUDENT USER */
-  /* ========================= */
+}
 
-  const studentEmail = 'student@test.com';
+async function upsertFakeStudent() {
+  // ✅ fake user-საც env-იდან ვაძლევთ ან default test
+  const studentEmail = process.env.SEED_STUDENT_EMAIL || "student@test.com";
+  const studentPassword = process.env.SEED_STUDENT_PASSWORD || "Student123!";
 
   const existingStudent = await prisma.user.findUnique({
     where: { email: studentEmail },
   });
 
   if (!existingStudent) {
-    const hashedPassword = await bcrypt.hash('Student123!', 10);
-
+    const hashedPassword = await bcrypt.hash(studentPassword, 10);
     await prisma.user.create({
       data: {
         email: studentEmail,
         password: hashedPassword,
-        name: 'Test',
-        surname: 'Student',
-        role: Role.STUDENT, // 👈 ზუსტად schema-ს მიხედვით
+        name: "Test",
+        surname: "Student",
+        role: Role.STUDENT,
         verified: true,
       },
     });
 
-    console.log('✅ Fake STUDENT user created');
+    console.log("✅ Fake STUDENT user created");
   } else {
-    console.log('⚠️ Fake STUDENT already exists');
+    console.log("⚠️ Fake STUDENT already exists");
   }
+}
 
-  const courses = [
+function buildCourses() {
+  const now = new Date();
+
+  return [
     {
-      slug: 'frontend-development',
+      slug: "frontend-development",
       type: CourseType.COURSE,
-      titleKa: 'Frontend დეველოპერი',
-      titleEn: 'Frontend Development',
-      descriptionKa: 'ისწავლე React, Next.js და TypeScript ნულიდან.',
-      descriptionEn: 'Learn React, Next.js and TypeScript from scratch.',
-      altTextKa: 'ფრონტენდის კურსი',
-      altTextEn: 'Frontend Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
+      titleKa: "Frontend დეველოპერი",
+      titleEn: "Frontend Development",
+      descriptionKa: "ისწავლე React, Next.js და TypeScript ნულიდან.",
+      descriptionEn: "Learn React, Next.js and TypeScript from scratch.",
+      altTextKa: "ფრონტენდის კურსი",
+      altTextEn: "Frontend Course",
+      buttonKa: "შეიძინე",
+      buttonEn: "Buy now",
+      formatKa: "ონლაინ",
+      formatEn: "Online",
+      languageKa: "ქართული",
+      languageEn: "Georgian",
       originalPrice: 800,
       discountedPrice: 600,
-      discount: '25%',
-      imageUrl: '/images/educationPic.webp',
+      discount: "25%",
+      imageUrl: "/images/educationPic.webp",
       isOnline: true,
       isGeorgia: true,
-      syllabusKa: 'HTML, CSS, JavaScript, React, Next.js, TypeScript',
-      syllabusEn: 'HTML, CSS, JavaScript, React, Next.js, TypeScript',
-      mentorKa: 'გიორგი ბაგრატიონი',
-      mentorEn: 'George Bagrationi',
-      videos: [
-        { url: 'https://youtube.com/embed/dQw4w9WgXcQ' },
-        { url: 'https://youtube.com/embed/example2' },
-      ],
-      materials: [
-        { link: 'https://developer.mozilla.org/en-US/docs/Web/HTML' },
-        { link: 'https://react.dev' },
-      ],
-      startDate: new Date(),
-      endDate: addMonths(new Date(), 1),
+      syllabusKa: "HTML, CSS, JavaScript, React, Next.js, TypeScript",
+      syllabusEn: "HTML, CSS, JavaScript, React, Next.js, TypeScript",
+      mentorKa: "გიორგი ბაგრატიონი",
+      mentorEn: "George Bagrationi",
+      videos: [{ url: "https://youtube.com/embed/dQw4w9WgXcQ" }],
+      materials: [{ link: "https://react.dev" }],
+      startDate: now,
+      endDate: addMonths(now, 1),
+      date: null, // ✅ Course-ზე date არ გვინდა
     },
+
     {
-      slug: 'uiux-design',
+      slug: "uiux-design",
       type: CourseType.COURSE,
-      titleKa: 'UI/UX დიზაინი',
-      titleEn: 'UI/UX Design',
-      descriptionKa: 'ისწავლე ფიგმა, UX, პროტოტაირინგი და დიზაინის საფუძვლები.',
-      descriptionEn: 'Learn Figma, UX, prototyping and design fundamentals.',
-      altTextKa: 'დიზაინის კურსი',
-      altTextEn: 'Design Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ადგილზე',
-      formatEn: 'On-site',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
+      titleKa: "UI/UX დიზაინი",
+      titleEn: "UI/UX Design",
+      descriptionKa: "ისწავლე ფიგმა, UX, პროტოტაირინგი და დიზაინის საფუძვლები.",
+      descriptionEn: "Learn Figma, UX, prototyping and design fundamentals.",
+      altTextKa: "დიზაინის კურსი",
+      altTextEn: "Design Course",
+      buttonKa: "შეიძინე",
+      buttonEn: "Buy now",
+      formatKa: "ადგილზე",
+      formatEn: "On-site",
+      languageKa: "ქართული",
+      languageEn: "Georgian",
       originalPrice: 1000,
       discountedPrice: 600,
-      discount: '30%',
-      imageUrl: '/images/educationPic.webp',
+      discount: "30%",
+      imageUrl: "/images/educationPic.webp",
       isOnline: false,
       isGeorgia: true,
-      syllabusKa: 'Figma, UX Research, Wireframing, Prototyping',
-      syllabusEn: 'Figma, UX Research, Wireframing, Prototyping',
-      mentorKa: 'ნინი შარაშენიძე',
-      mentorEn: 'Nini Sharashenidze',
-      videos: [
-        { url: 'https://youtube.com/embed/design1' },
-        { url: 'https://youtube.com/embed/design2' },
-      ],
-      materials: [
-        { link: 'https://figma.com' },
-        { link: 'https://uxplanet.org' },
-      ],
-      startDate: new Date(),
-      endDate: addDays(new Date(), 7),
-    },
-    {
-      slug: 'backend-development',
-      type: CourseType.COURSE,
-      titleKa: 'Backend დეველოპერი',
-      titleEn: 'Backend Development',
-      descriptionKa: 'ისწავლე Node.js, Express და PostgreSQL.',
-      descriptionEn: 'Learn Node.js, Express and PostgreSQL.',
-      altTextKa: 'ბექენდის კურსი',
-      altTextEn: 'Backend Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 900,
-      discountedPrice: 650,
-      discount: '28%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: true,
-      syllabusKa: 'Node.js, Express, PostgreSQL, REST APIs',
-      syllabusEn: 'Node.js, Express, PostgreSQL, REST APIs',
-      mentorKa: 'დავით ყიფიანი',
-      mentorEn: 'David Kipiani',
-      videos: [
-        { url: 'https://youtube.com/embed/backend1' },
-        { url: 'https://youtube.com/embed/backend2' },
-      ],
-      materials: [
-        { link: 'https://nodejs.org' },
-        { link: 'https://www.postgresql.org' },
-      ],
-      startDate: new Date(),
-      endDate: addMonths(new Date(), 1),
-    },
-    {
-      slug: 'mobile-development',
-      type: CourseType.COURSE,
-      titleKa: 'მობილური აპლიკაციების დეველოპმენტი',
-      titleEn: 'Mobile App Development',
-      descriptionKa:
-        'ისწავლე Flutter და React Native აპლიკაციების შესაქმნელად.',
-      descriptionEn: 'Learn Flutter and React Native to build mobile apps.',
-      altTextKa: 'მობილური კურსი',
-      altTextEn: 'Mobile Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 950,
-      discountedPrice: 700,
-      discount: '26%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: true,
-      syllabusKa: 'Flutter, React Native, Dart, Mobile UI',
-      syllabusEn: 'Flutter, React Native, Dart, Mobile UI',
-      mentorKa: 'მარიამ ჯინჭარაძე',
-      mentorEn: 'Mariam Jincharadze',
-      videos: [
-        { url: 'https://youtube.com/embed/mobile1' },
-        { url: 'https://youtube.com/embed/mobile2' },
-      ],
-      materials: [
-        { link: 'https://flutter.dev' },
-        { link: 'https://reactnative.dev' },
-      ],
-      startDate: new Date(),
-      endDate: addDays(new Date(), 2),
-    },
-    {
-      slug: 'data-science',
-      type: CourseType.COURSE,
-      titleKa: 'დაცული მეცნიერება',
-      titleEn: 'Data Science',
-      descriptionKa:
-        'ისწავლე Python, Pandas, Machine Learning და AI საფუძვლები.',
-      descriptionEn: 'Learn Python, Pandas, Machine Learning and AI basics.',
-      altTextKa: 'დამუშავების კურსი',
-      altTextEn: 'Data Science Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 1200,
-      discountedPrice: 850,
-      discount: '29%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: true,
-      syllabusKa: 'Python, Pandas, NumPy, Machine Learning, AI',
-      syllabusEn: 'Python, Pandas, NumPy, Machine Learning, AI',
-      mentorKa: 'თამარ ნაჭყებია',
-      mentorEn: 'Tamar Natchkebia',
-      videos: [
-        { url: 'https://youtube.com/embed/ds1' },
-        { url: 'https://youtube.com/embed/ds2' },
-      ],
-      materials: [
-        { link: 'https://pandas.pydata.org' },
-        { link: 'https://scikit-learn.org' },
-      ],
-      startDate: new Date(),
-      endDate:  addDays(new Date(), 1),
-    },
-    {
-      slug: 'cybersecurity',
-      type: CourseType.COURSE,
-      titleKa: 'კიბერუსაფრთხოება',
-      titleEn: 'Cybersecurity',
-      descriptionKa:
-        'ისწავლე ქსელის უსაფრთხოება, ჰაკერული თავდასხმები და დაცვა.',
-      descriptionEn: 'Learn network security, hacking attacks and protection.',
-      altTextKa: 'უსაფრთხოების კურსი',
-      altTextEn: 'Cybersecurity Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 1100,
-      discountedPrice: 800,
-      discount: '27%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: true,
-      syllabusKa: 'Networking, Penetration Testing, Security Protocols',
-      syllabusEn: 'Networking, Penetration Testing, Security Protocols',
-      mentorKa: 'ლევან გოგოლაძე',
-      mentorEn: 'Levan Gogoladze',
-      videos: [
-        { url: 'https://youtube.com/embed/cyber1' },
-        { url: 'https://youtube.com/embed/cyber2' },
-      ],
-      materials: [
-        { link: 'https://owasp.org' },
-        { link: 'https://www.cisco.com/c/en/us/products/security/' },
-      ],
-      startDate: new Date(),
-      endDate: addMonths(new Date(), 1),
-    },
-    {
-      slug: 'test',
-      type: CourseType.COURSE,
-      titleKa: 'test',
-      titleEn: 'test',
-      descriptionKa:
-        'ისწავლე ქსელის უსაფრთხოება, ჰაკერული თავდასხმები და დაცვა.',
-      descriptionEn: 'Learn network security, hacking attacks and protection.',
-      altTextKa: 'უსაფრთხოების კურსი',
-      altTextEn: 'Cybersecurity Course',
-      buttonKa: 'შეიძინე',
-      buttonEn: 'Buy now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 1100,
-      discountedPrice: 800,
-      discount: '27%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: true,
-      syllabusKa: 'Networking, Penetration Testing, Security Protocols',
-      syllabusEn: 'Networking, Penetration Testing, Security Protocols',
-      mentorKa: 'ლევან გოგოლაძე',
-      mentorEn: 'Levan Gogoladze',
-      videos: [
-        { url: 'https://youtube.com/embed/cyber1' },
-        { url: 'https://youtube.com/embed/cyber2' },
-      ],
-      materials: [
-        { link: 'https://owasp.org' },
-        { link: 'https://www.cisco.com/c/en/us/products/security/' },
-      ],
-      startDate: new Date(),
-      endDate: addMonths(new Date(), 1),
+      syllabusKa: "Figma, UX Research, Wireframing, Prototyping",
+      syllabusEn: "Figma, UX Research, Wireframing, Prototyping",
+      mentorKa: "ნინი შარაშენიძე",
+      mentorEn: "Nini Sharashenidze",
+      videos: [{ url: "https://youtube.com/embed/design1" }],
+      materials: [{ link: "https://figma.com" }],
+      startDate: now,
+      endDate: addMonths(now, 1),
+      date: null,
     },
   ];
+}
 
-  for (const course of courses) {
-    const { videos, materials, ...courseData } = course;
+function buildWorkshops() {
+  const now = new Date();
+
+  return [
+    {
+      slug: "photoshop-workshop",
+      type: CourseType.WORKSHOP,
+      titleKa: "ფოტოშოპის ვორკშოფი",
+      titleEn: "Photoshop Workshop",
+      descriptionKa: "ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ფოტოშოპში.",
+      descriptionEn: "One-day intensive practical Photoshop workshop.",
+      altTextKa: "ვორკშოფი",
+      altTextEn: "Workshop",
+      buttonKa: "დაჯავშნა",
+      buttonEn: "Book now",
+      formatKa: "ადგილზე",
+      formatEn: "On-site",
+      languageKa: "ქართული",
+      languageEn: "Georgian",
+      originalPrice: 150,
+      discountedPrice: 120,
+      discount: "20%",
+      imageUrl: "/images/educationPic.webp",
+      isOnline: false,
+      isGeorgia: true,
+      // ✅ Workshop-ზე მთავარი არის date
+      date: addDays(now, 7),
+      location: "თბილისი, GMT Plaza",
+      startDate: null,
+      endDate: null,
+    },
+
+    {
+      slug: "ai-workshop",
+      type: CourseType.WORKSHOP,
+      titleKa: "ხელოვნური ინტელექტის ვორკშოფი",
+      titleEn: "AI Workshop",
+      descriptionKa: "ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი AI-ზე.",
+      descriptionEn: "One-day intensive practical AI workshop.",
+      altTextKa: "ვორკშოფი",
+      altTextEn: "Workshop",
+      buttonKa: "დაჯავშნა",
+      buttonEn: "Book now",
+      formatKa: "ონლაინ",
+      formatEn: "Online",
+      languageKa: "ინგლისური",
+      languageEn: "English",
+      originalPrice: 0,
+      discountedPrice: 0,
+      discount: null,
+      imageUrl: "/images/educationPic.webp",
+      isOnline: true,
+      isGeorgia: false,
+      date: addDays(now, 14),
+      location: "ონლაინ",
+      startDate: null,
+      endDate: null,
+    },
+  ];
+}
+
+async function upsertCoursesAndWorkshops() {
+  const courses = buildCourses();
+  const workshops = buildWorkshops();
+
+  const all = [...courses, ...workshops];
+
+  for (const item of all) {
+    const { videos, materials, ...courseData } = item as any;
 
     await prisma.course.upsert({
-      where: { slug: course.slug },
+      where: { slug: item.slug },
       update: {
         ...courseData,
-        videos: {
-          deleteMany: {},
-          create: videos,
-        },
-        materials: {
-          deleteMany: {},
-          create: materials,
-        },
+
+        // ✅ უსაფრთხო ვარიანტი: nested relations არ წავშალოთ ავტომატურად
+        ...(videos
+          ? {
+              videos: {
+                deleteMany: {}, // dev-ზე OK, prod-ზე seed ისედაც არ ეშვება
+                create: videos,
+              },
+            }
+          : {}),
+
+        ...(materials
+          ? {
+              materials: {
+                deleteMany: {},
+                create: materials,
+              },
+            }
+          : {}),
       },
       create: {
         ...courseData,
-        videos: { create: videos },
-        materials: { create: materials },
+        ...(videos ? { videos: { create: videos } } : {}),
+        ...(materials ? { materials: { create: materials } } : {}),
       },
     });
   }
-  const workshops = [
-    {
-      slug: 'photoshop-workshop',
-      type: CourseType.WORKSHOP,
-      titleKa: 'ფოტოშოპის ვორკშოფი',
-      titleEn: 'Photoshop Workshop',
-      descriptionKa: 'ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ფოტოშოპში.',
-      descriptionEn: 'One-day intensive practical Photoshop workshop.',
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-      formatKa: 'ადგილზე',
-      formatEn: 'On-site',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 150,
-      discountedPrice: 120,
-      discount: '20%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: false,
-      isGeorgia: true,
-      date: new Date('2025-01-20T18:00:00'),
-      location: 'თბილისი, GMT Plaza',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 7),
-    },
-    {
-      slug: 'ai-workshop',
-      type: CourseType.WORKSHOP,
-      titleKa: 'ხელოვნური ინტელექტის ვორკშოფი',
-      titleEn: 'AI Workshop',
-      descriptionKa:
-        'ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ხელოვნური ინტელექტის შესახებ.',
-      descriptionEn: 'One-day intensive practical AI workshop.',
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ინგლისური',
-      languageEn: 'English',
-      originalPrice: 0,
-      discountedPrice: 0,
-      discount: null,
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: false,
-      date: new Date('2025-02-01T19:00:00'),
-      location: 'ონლაინ',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 1),
-    },
-    {
-      slug: 'figma-workshop',
-      type: CourseType.WORKSHOP,
-      titleKa: 'ფიგმის ვორკშოფი',
-      titleEn: 'Figma Workshop',
-      descriptionKa: 'ერთდღიანი ინტენსიური ვორკშოფი ფიგმაში.',
-      descriptionEn: 'One-day intensive workshop in Figma.',
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-      formatKa: 'ადგილზე',
-      formatEn: 'On-site',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 100,
-      discountedPrice: 80,
-      discount: '20%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: false,
-      isGeorgia: true,
-      date: new Date('2025-03-05T18:00:00'),
-      location: 'თბილისი, Innovation Hub',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 3),
-    },
-    {
-      slug: 'react-workshop',
-      type: CourseType.WORKSHOP,
-      titleKa: 'React ვორკშოფი',
-      titleEn: 'React Workshop',
-      descriptionKa: 'ერთდღიანი პრაქტიკული React ვორკშოფი.',
-      descriptionEn: 'One-day practical React workshop.',
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 120,
-      discountedPrice: 90,
-      discount: '25%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: true,
-      date: new Date('2025-03-15T18:00:00'),
-      location: 'ონლაინ',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 1),
-    },
-    {
-      slug: 'machine-learning-workshop',
-      type: CourseType.WORKSHOP,
-      titleKa: 'Machine Learning ვორკშოფი',
-      titleEn: 'Machine Learning Workshop',
-      descriptionKa: 'ერთდღიანი პრაქტიკული ML ვორკშოფი Python-ში.',
-      descriptionEn: 'One-day practical ML workshop in Python.',
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-      formatKa: 'ონლაინ',
-      formatEn: 'Online',
-      languageKa: 'ინგლისური',
-      languageEn: 'English',
-      originalPrice: 200,
-      discountedPrice: 150,
-      discount: '25%',
-      imageUrl: '/images/educationPic.webp',
-      isOnline: true,
-      isGeorgia: false,
-      date: new Date('2025-04-01T19:00:00'),
-      location: 'ონლაინ',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 1),
-    },
-    {
-      slug: 'cybersecurity-workshop',
-      type: CourseType.WORKSHOP,
-      titleKa: 'კიბერუსაფრთხოების ვორკშოფი',
-      titleEn: 'Cybersecurity Workshop',
-      descriptionKa: 'ერთდღიანი ინტენსიური ვორკშოფი კიბერუსაფრთხოებაზე.',
-      descriptionEn: 'One-day intensive workshop on cybersecurity.',
-      altTextKa: 'ვორკშოფი',
-      altTextEn: 'Workshop',
-      buttonKa: 'დაჯავშნა',
-      buttonEn: 'Book now',
-      formatKa: 'ადგილზე',
-      formatEn: 'On-site',
-      languageKa: 'ქართული',
-      languageEn: 'Georgian',
-      originalPrice: 0,
-      discountedPrice: 0,
-      discount: null,
-      imageUrl: '/images/educationPic.webp',
-      isOnline: false,
-      isGeorgia: true,
-      date: new Date('2025-04-10T18:00:00'),
-      location: 'თბილისი, TechPark',
-      startDate: new Date(),
-      endDate: addDays(new Date(), 2),
-    },
-  ];
+}
 
-  for (const workshop of workshops) {
-    await prisma.course.upsert({
-      where: { slug: workshop.slug },
-      update: {
-        ...workshop,
-      },
-      create: { ...workshop },
-    });
-  }
+async function main() {
+  assertDevSeedAllowed();
 
-  console.log('🌱 Seed completed successfully!');
+  await upsertAdmin();
+  await upsertFakeStudent();
+  await upsertCoursesAndWorkshops();
+
+  console.log("🌱 Seed completed successfully!");
 }
 
 main()
-  .catch((err) => console.error('❌ Seed failed:', err))
+  .catch((err) => console.error("❌ Seed failed:", err))
   .finally(() => prisma.$disconnect());
