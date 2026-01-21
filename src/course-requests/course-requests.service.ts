@@ -2,51 +2,63 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   CourseRequestStatus,
   CourseStatus,
   CourseType,
   CourseDelivery,
   CourseFormat,
-} from '@prisma/client';
-import { addDays } from 'date-fns';
-import { CreateCourseRequestDto } from './dto/create-course-request.dto';
+} from "@prisma/client";
+import { addDays } from "date-fns";
+import { CreateCourseRequestDto } from "./dto/create-course-request.dto";
+import { computePricing } from "../common/pricing/pricing";
 
 @Injectable()
 export class CourseRequestsService {
   constructor(private prisma: PrismaService) {}
 
-  // პატარა helper slug-ისთვის
   private makeSlug(title: string) {
-    const base = title
+    const cleaned = title
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9\-]/g, '');
+      .replace(/\s+/g, "-")
+      .replace(/[^\p{L}\p{N}\-]+/gu, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    const base = cleaned.length ? cleaned : "course";
     return `${base}-${Date.now()}`;
   }
 
-  // STEP 1 — USER creates DRAFT (real fields)
+  // STEP 1 — USER creates DRAFT
   async createDraft(userId: string, dto: CreateCourseRequestDto) {
-    // WORKSHOP/MASTERCLASS ყოველთვის LIVE
     const delivery =
       dto.type === CourseType.COURSE
-        ? (dto.delivery ?? CourseDelivery.LIVE)
+        ? dto.delivery ?? CourseDelivery.LIVE
         : CourseDelivery.LIVE;
 
-    // ფასდაკლება -> discountedPrice
-    const originalPrice = dto.price;
-    const discountPercent = dto.type === CourseType.COURSE ? dto.discountPercent : undefined;
-    const discountedPrice =
-      discountPercent && discountPercent > 0
-        ? Math.max(0, Math.round(originalPrice - (originalPrice * discountPercent) / 100))
-        : originalPrice;
+    // ✅ pricing
+    let pricing = {
+      originalPrice: 0,
+      discountedPrice: null as number | null,
+      discountPercent: null as number | null,
+    };
 
-    // VIDEO კურსის videoUrls -> requestVideos create
+    if (dto.originalPrice !== undefined && dto.originalPrice !== null) {
+      try {
+        pricing = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
+      } catch (e: any) {
+        throw new BadRequestException(e.message);
+      }
+    }
+
     const requestVideosCreate =
-      dto.type === CourseType.COURSE && delivery === CourseDelivery.VIDEO && dto.videoUrls?.length
+      dto.type === CourseType.COURSE &&
+      delivery === CourseDelivery.VIDEO &&
+      dto.videoUrls?.length
         ? {
             create: dto.videoUrls.map((url, idx) => ({
               url,
@@ -61,37 +73,47 @@ export class CourseRequestsService {
 
         type: dto.type,
         category: dto.category,
-        format: dto.format as unknown as CourseFormat, // თუ dto-ში enum-ია, ეს cast არ დაგჭირდება
+        format: dto.format,
         delivery,
 
         titleKa: dto.titleKa,
-        titleEn: dto.titleEn,
+        titleEn: dto.titleEn ?? null,
         descriptionKa: dto.descriptionKa,
-        descriptionEn: dto.descriptionEn,
-        imageUrl: dto.imageUrl,
+        descriptionEn: dto.descriptionEn ?? null,
+        imageUrl: dto.imageUrl ?? null,
 
-        languageKa: dto.languageKa,
-        languageEn: dto.languageEn,
+        languageKa: dto.languageKa ?? null,
+        languageEn: dto.languageEn ?? null,
 
-        // COURSE-only fields
-        syllabusKa: dto.type === CourseType.COURSE ? dto.syllabusKa : null,
-        syllabusEn: dto.type === CourseType.COURSE ? dto.syllabusEn : null,
-        mentorKa: dto.type === CourseType.COURSE ? dto.mentorKa : null,
-        mentorEn: dto.type === CourseType.COURSE ? dto.mentorEn : null,
+        syllabusKa:
+          dto.type === CourseType.COURSE ? dto.syllabusKa ?? null : null,
+        syllabusEn:
+          dto.type === CourseType.COURSE ? dto.syllabusEn ?? null : null,
+        mentorKa:
+          dto.type === CourseType.COURSE ? dto.mentorKa ?? null : null,
+        mentorEn:
+          dto.type === CourseType.COURSE ? dto.mentorEn ?? null : null,
 
-        // price
-        price: dto.price, // legacy
-        originalPrice,
-        discountedPrice,
-        discount: discountPercent ? `${discountPercent}%` : null,
+        // ✅ pricing fields (NO discount string)
+        originalPrice: dto.originalPrice ?? null,
+        discountedPrice:
+          dto.originalPrice != null ? pricing.discountedPrice : null,
+        discountPercent:
+          dto.originalPrice != null ? pricing.discountPercent : null,
 
-        // WORKSHOP/MASTERCLASS
-        date: dto.type !== CourseType.COURSE && dto.date ? new Date(dto.date) : null,
-        location: dto.format === CourseFormat.ONSITE ? dto.location : null,
+        // WORKSHOP / MASTERCLASS
+        date:
+          dto.type !== CourseType.COURSE && dto.date
+            ? new Date(dto.date)
+            : null,
+        location:
+          dto.format === CourseFormat.ONSITE ? dto.location ?? null : null,
 
         // LIVE COURSE
         startDate:
-          dto.type === CourseType.COURSE && delivery === CourseDelivery.LIVE && dto.startDate
+          dto.type === CourseType.COURSE &&
+          delivery === CourseDelivery.LIVE &&
+          dto.startDate
             ? new Date(dto.startDate)
             : null,
 
@@ -104,19 +126,31 @@ export class CourseRequestsService {
     });
   }
 
-  // STEP 2 — USER sets days + price (listing)
-  async setDetails(requestId: string, userId: string, days: number, price: number) {
+  // STEP 2 — USER sets listing details
+  async setDetails(
+    requestId: string,
+    userId: string,
+    listingDays: number,
+    listingFee: number
+  ) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-    if (!request) throw new NotFoundException('Course request not found');
+    if (!request) throw new NotFoundException("Course request not found");
     if (request.creatorId !== userId) throw new ForbiddenException();
+
+    if (!Number.isInteger(listingDays) || listingDays < 1) {
+      throw new BadRequestException("listingDays must be >= 1");
+    }
+    if (!Number.isInteger(listingFee) || listingFee < 0) {
+      throw new BadRequestException("listingFee must be >= 0");
+    }
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },
       data: {
-        days,   // listing days
-        price,  // listing fee (შენ ახლა ასე გაქვს)
+        listingDays,
+        listingFee,
         status: CourseRequestStatus.PENDING_PAYMENT,
       },
     });
@@ -126,7 +160,7 @@ export class CourseRequestsService {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-    if (!request) throw new NotFoundException('Course request not found');
+    if (!request) throw new NotFoundException("Course request not found");
     if (request.creatorId !== userId) throw new ForbiddenException();
 
     return this.prisma.courseRequest.update({
@@ -140,52 +174,60 @@ export class CourseRequestsService {
       where: { id: requestId },
       include: { requestVideos: true },
     });
-    if (!request) throw new NotFoundException('Course request not found');
+    if (!request) throw new NotFoundException("Course request not found");
     if (request.creatorId !== userId) throw new ForbiddenException();
 
-    // ✅ base required
     if (!request.category || !request.format) {
-      throw new ForbiddenException('Category and format are required');
+      throw new ForbiddenException("Category and format are required");
     }
     if (!request.languageKa) {
-      throw new ForbiddenException('Language is required');
+      throw new ForbiddenException("Language is required");
     }
 
-    // ✅ COURSE validations
     if (request.type === CourseType.COURSE) {
-      if (!request.syllabusKa) throw new ForbiddenException('Syllabus is required for course');
+      if (!request.syllabusKa) {
+        throw new ForbiddenException("Syllabus is required for course");
+      }
 
-      // delivery must exist for COURSE
-      if (!request.delivery) throw new ForbiddenException('Delivery is required for course');
+      if (!request.delivery) {
+        throw new ForbiddenException("Delivery is required for course");
+      }
 
-      if (request.delivery === CourseDelivery.LIVE) {
-        if (!request.startDate) throw new ForbiddenException('Start date is required for live course');
+      if (
+        request.delivery === CourseDelivery.LIVE &&
+        !request.startDate
+      ) {
+        throw new ForbiddenException("Start date is required for live course");
       }
 
       if (request.delivery === CourseDelivery.VIDEO) {
         if (!request.requestVideos?.length) {
-          throw new ForbiddenException('At least 1 video is required for video course');
+          throw new ForbiddenException(
+            "At least 1 video is required for video course"
+          );
         }
         if (request.requestVideos.length > 25) {
-          throw new ForbiddenException('Max 25 videos allowed');
+          throw new ForbiddenException("Max 25 videos allowed");
         }
       }
 
-      // listing details (შენ ახლა COURSE-ზე ითხოვდი)
-      if (!request.days || request.price === null || request.price === undefined) {
-        throw new ForbiddenException('Fill details first (days & price required)');
+      if (
+        !request.listingDays ||
+        request.listingFee === null ||
+        request.listingFee === undefined
+      ) {
+        throw new ForbiddenException(
+          "Fill details first (listingDays & listingFee required)"
+        );
       }
     }
 
-    // ✅ WORKSHOP / MASTERCLASS validations
     if (request.type !== CourseType.COURSE) {
-      if (!request.date) throw new ForbiddenException('Date is required for workshop/masterclass');
-
-      // სურვილისამებრ: listing days/fee თუ გინდა workshop-ზეც
-      // თუ არა — კომენტარად დატოვე
-      // if (!request.days || request.price === null || request.price === undefined) {
-      //   throw new ForbiddenException('Fill details first (days & price required)');
-      // }
+      if (!request.date) {
+        throw new ForbiddenException(
+          "Date is required for workshop/masterclass"
+        );
+      }
     }
 
     return this.prisma.courseRequest.update({
@@ -198,28 +240,41 @@ export class CourseRequestsService {
     return this.prisma.courseRequest.findMany({
       where: { status: CourseRequestStatus.PENDING_APPROVAL },
       include: { creator: true, requestVideos: true, requestMaterials: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
-  // ADMIN — approve: create Course from request (no defaults)
+  // ADMIN — approve: create Course from request
   async approve(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
       include: { requestVideos: true, requestMaterials: true },
     });
-    if (!request) throw new NotFoundException('Course request not found');
+    if (!request) throw new NotFoundException("Course request not found");
 
-    // safety
     if (request.status !== CourseRequestStatus.PENDING_APPROVAL) {
-      throw new ForbiddenException('Request must be PENDING_APPROVAL');
+      throw new ForbiddenException("Request must be PENDING_APPROVAL");
     }
 
-    // listing endDate (used by your cron)
-    const listingEndDate =
-      request.days && request.days > 0 ? addDays(new Date(), request.days) : null;
+    const listingEndsAt =
+      request.listingDays && request.listingDays > 0
+        ? addDays(new Date(), request.listingDays)
+        : null;
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    let pricingFinal = {
+      originalPrice: 0,
+      discountedPrice: null as number | null,
+      discountPercent: null as number | null,
+    };
+
+    if (request.originalPrice !== null && request.originalPrice !== undefined) {
+      pricingFinal = computePricing(
+        request.originalPrice,
+        request.discountedPrice ?? null
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
       const slug = this.makeSlug(request.titleEn ?? request.titleKa);
 
       const createdCourse = await tx.course.create({
@@ -229,36 +284,36 @@ export class CourseRequestsService {
 
           creatorId: request.creatorId,
 
-          category: request.category ?? undefined,
-          format: request.format ?? undefined,
+          category: request.category!,
+          format: request.format!,
           delivery: request.delivery ?? CourseDelivery.LIVE,
 
           titleKa: request.titleKa,
-          titleEn: request.titleEn ?? request.titleKa,
+          titleEn: request.titleEn ?? null,
           descriptionKa: request.descriptionKa,
-          descriptionEn: request.descriptionEn ?? request.descriptionKa,
+          descriptionEn: request.descriptionEn ?? null,
 
-          imageUrl: request.imageUrl ?? '',
+          imageUrl: request.imageUrl ?? "",
           altTextKa: request.titleKa,
           altTextEn: request.titleEn ?? request.titleKa,
 
-          // UI text - თუ გინდა request-იდანაც წამოვიდეს, მერე დავამატებთ
-          buttonKa: 'დარეგისტრირება',
-          buttonEn: 'Register',
+          buttonKa: "დარეგისტრირება",
+          buttonEn: "Register",
 
-          // აქ უკვე request-იდან ვიღებთ რეალურს
-          formatKa: request.format === CourseFormat.ONSITE ? 'ადგილზე' : 'ონლაინ',
-          formatEn: request.format === CourseFormat.ONSITE ? 'On-site' : 'Online',
-          languageKa: request.languageKa ?? 'ქართული',
-          languageEn: request.languageEn ?? 'Georgian',
+          formatKa:
+            request.format === CourseFormat.ONSITE ? "ადგილზე" : "ონლაინ",
+          formatEn:
+            request.format === CourseFormat.ONSITE ? "On-site" : "Online",
+          languageKa: request.languageKa ?? "ქართული",
+          languageEn: request.languageEn ?? null,
 
           location: request.location,
 
-          // ✅ live vs workshop dates
           startDate: request.startDate,
-          endDate: listingEndDate, // ⚠️ ეს listing expiry-ა (cron ამას იყენებს)
+          endDate: request.endDate,
           date: request.date,
 
+          listingEndsAt,
           status: CourseStatus.ACTIVE,
 
           syllabusKa: request.syllabusKa,
@@ -266,41 +321,45 @@ export class CourseRequestsService {
           mentorKa: request.mentorKa,
           mentorEn: request.mentorEn,
 
-          // price
-          originalPrice: request.originalPrice ?? request.price ?? 0,
-          discountedPrice: request.discountedPrice ?? request.price ?? 0,
-          discount: request.discount,
+          // ✅ pricing (NO discount string)
+          originalPrice: request.originalPrice ?? 0,
+          discountedPrice: pricingFinal.discountedPrice,
+          discountPercent: pricingFinal.discountPercent,
 
-          // copy videos/materials from request
           videos:
-            request.delivery === CourseDelivery.VIDEO && request.requestVideos?.length
-              ? { create: request.requestVideos.map((v) => ({ url: v.url })) }
+            request.delivery === CourseDelivery.VIDEO &&
+            request.requestVideos?.length
+              ? {
+                  create: request.requestVideos.map((v) => ({ url: v.url })),
+                }
               : undefined,
 
           materials:
             request.requestMaterials?.length
-              ? { create: request.requestMaterials.map((m) => ({ link: m.link })) }
+              ? {
+                  create: request.requestMaterials.map((m) => ({
+                    link: m.link,
+                  })),
+                }
               : undefined,
         },
         include: { videos: true, materials: true },
       });
 
-      const updatedRequest = await tx.courseRequest.update({
+      await tx.courseRequest.update({
         where: { id: requestId },
         data: { status: CourseRequestStatus.APPROVED },
       });
 
-      return { createdCourse, updatedRequest };
+      return createdCourse;
     });
-
-    return result;
   }
 
   async reject(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
     });
-    if (!request) throw new NotFoundException('Course request not found');
+    if (!request) throw new NotFoundException("Course request not found");
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },

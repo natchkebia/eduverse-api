@@ -1,161 +1,158 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCourseDto } from './dto/create-course.dto';
-import { addDays, addHours } from 'date-fns';
-import { CourseStatus, CourseType } from '@prisma/client';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateCourseDto } from "./dto/create-course.dto";
+import { addDays, addHours } from "date-fns";
+import { CourseStatus, CourseType } from "@prisma/client";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { computePricing } from "../common/pricing/pricing";
 
 @Injectable()
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * 🔍 SEARCH (locale-aware)
-   * - locale=ka -> search KA fields
-   * - locale=en -> search EN fields only, and return only EN-available courses
-   */
-  async searchCourses(query: string, locale: string = 'ka') {
-    const isEn = locale === 'en';
+  async searchCourses(query: string, locale: string = "ka") {
+    const isEn = locale === "en";
 
     return this.prisma.course.findMany({
       where: {
         ...(isEn ? { titleEn: { not: null } } : {}),
         OR: isEn
           ? [
-              { titleEn: { contains: query, mode: 'insensitive' } },
-              { descriptionEn: { contains: query, mode: 'insensitive' } },
+              { titleEn: { contains: query, mode: "insensitive" } },
+              { descriptionEn: { contains: query, mode: "insensitive" } },
             ]
           : [
-              { titleKa: { contains: query, mode: 'insensitive' } },
-              { descriptionKa: { contains: query, mode: 'insensitive' } },
+              { titleKa: { contains: query, mode: "insensitive" } },
+              { descriptionKa: { contains: query, mode: "insensitive" } },
             ],
       },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      orderBy: { createdAt: "desc" },
+      include: { videos: true, materials: true },
     });
   }
 
-  /**
-   * 🌍 PUBLIC COURSES (locale-aware)
-   * - locale=en -> return only courses that have titleEn (EN version available)
-   */
-  async getPublicCourses(type?: CourseType, locale: string = 'ka') {
-    const isEn = locale === 'en';
+  async getPublicCourses(type?: CourseType, locale: string = "ka") {
+    const isEn = locale === "en";
 
     return this.prisma.course.findMany({
       where: {
-        status: {
-          in: [CourseStatus.ACTIVE, CourseStatus.EXPIRING],
-        },
+        status: { in: [CourseStatus.ACTIVE, CourseStatus.EXPIRING] },
         ...(type ? { type } : {}),
         ...(isEn ? { titleEn: { not: null } } : {}),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      orderBy: { createdAt: "desc" },
+      include: { videos: true, materials: true },
     });
   }
 
   async getActiveCourses() {
     return this.prisma.course.findMany({
-      where: {
-        status: CourseStatus.ACTIVE,
-      },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      where: { status: CourseStatus.ACTIVE },
+      include: { videos: true, materials: true },
     });
   }
 
   async getExpiringCourses() {
     return this.prisma.course.findMany({
-      where: {
-        status: CourseStatus.EXPIRING,
-      },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      where: { status: CourseStatus.EXPIRING },
+      include: { videos: true, materials: true },
     });
   }
 
   async getArchivedCourses() {
     return this.prisma.course.findMany({
-      where: {
-        status: {
-          in: [CourseStatus.EXPIRED, CourseStatus.ARCHIVED],
-        },
-      },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      where: { status: { in: [CourseStatus.EXPIRED, CourseStatus.ARCHIVED] } },
+      include: { videos: true, materials: true },
     });
   }
 
   async findOneById(id: number) {
     return this.prisma.course.findUnique({
       where: { id },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      include: { videos: true, materials: true },
     });
   }
 
   async findBySlug(slug: string) {
     return this.prisma.course.findUnique({
       where: { slug },
-      include: {
-        videos: true,
-        materials: true,
-      },
+      include: { videos: true, materials: true },
     });
   }
 
   /**
    * ✍️ CREATE (ADMIN)
-   * EN fields are optional now.
+   * - supports pricing with/without discount
+   * - explicit fields only (no mass assignment)
+   * - ❌ no `discount` string saved (removed from schema)
    */
-  async createCourse(data: CreateCourseDto) {
+  async createCourse(dto: CreateCourseDto) {
+    let pricing: {
+      originalPrice: number;
+      discountedPrice: number | null;
+      discountPercent: number | null;
+    };
+
+    try {
+      pricing = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
+    } catch (e: any) {
+      throw new BadRequestException(e.message);
+    }
+
     return this.prisma.course.create({
       data: {
-        ...data,
-        startDate: new Date(),
-        endDate: addDays(new Date(), data.duration),
+        slug: dto.slug,
+        type: dto.type ?? CourseType.COURSE,
+
+        originalPrice: pricing.originalPrice,
+        discountedPrice: pricing.discountedPrice,
+        discountPercent: pricing.discountPercent,
+
+        imageUrl: dto.imageUrl,
+
+        titleKa: dto.titleKa,
+        descriptionKa: dto.descriptionKa,
+        altTextKa: dto.altTextKa,
+        buttonKa: dto.buttonKa,
+        formatKa: dto.formatKa,
+        languageKa: dto.languageKa,
+
+        titleEn: dto.titleEn ?? null,
+        descriptionEn: dto.descriptionEn ?? null,
+        altTextEn: dto.altTextEn ?? null,
+        buttonEn: dto.buttonEn ?? null,
+        formatEn: dto.formatEn ?? null,
+        languageEn: dto.languageEn ?? null,
+
+        // ✅ listing expiry for cron/status
+        listingEndsAt: addDays(new Date(), dto.duration),
+
         status: CourseStatus.ACTIVE,
       },
     });
   }
 
   async extendCourse(id: number, duration: number) {
-    const course = await this.prisma.course.findUnique({
-      where: { id },
-    });
+    const course = await this.prisma.course.findUnique({ where: { id } });
+    if (!course) throw new NotFoundException("Course not found");
 
-    if (!course) {
-      throw new NotFoundException('Course not found');
-    }
+    const base = course.listingEndsAt ?? new Date();
 
     return this.prisma.course.update({
       where: { id },
       data: {
-        endDate: addDays(course.endDate ?? new Date(), duration),
+        listingEndsAt: addDays(base, duration),
         status: CourseStatus.ACTIVE,
       },
     });
   }
 
   /**
-   * ⏱️ STATUS CRON
+   * ⏱️ STATUS CRON (uses listingEndsAt)
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async updateCourseStatuses() {
@@ -165,26 +162,17 @@ export class CoursesService {
     await this.prisma.course.updateMany({
       where: {
         status: CourseStatus.ACTIVE,
-        endDate: {
-          lte: in24Hours,
-          gt: now,
-        },
+        listingEndsAt: { lte: in24Hours, gt: now },
       },
-      data: {
-        status: CourseStatus.EXPIRING,
-      },
+      data: { status: CourseStatus.EXPIRING },
     });
 
     await this.prisma.course.updateMany({
       where: {
         status: CourseStatus.EXPIRING,
-        endDate: {
-          lte: now,
-        },
+        listingEndsAt: { lte: now },
       },
-      data: {
-        status: CourseStatus.EXPIRED,
-      },
+      data: { status: CourseStatus.EXPIRED },
     });
   }
 }

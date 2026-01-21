@@ -1,19 +1,19 @@
-import { PrismaClient, CourseType, Role } from "@prisma/client";
+import {
+  PrismaClient,
+  CourseType,
+  Role,
+  CourseFormat,
+  CourseDelivery,
+} from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import { addDays, addMonths } from "date-fns";
 
 const prisma = new PrismaClient();
 
 function assertDevSeedAllowed() {
-  // ✅ production-ზე საერთოდ არ ვუშვებთ seed-ს
   if (process.env.NODE_ENV === "production") {
     throw new Error("❌ Seeding is disabled in production.");
   }
-
-  // ✅ სურვილისამებრ: თუ გინდა უფრო მკაცრი, ჩართე ALLOW_SEED=true
-  // if (process.env.ALLOW_SEED !== "true") {
-  //   throw new Error("❌ Set ALLOW_SEED=true to run seed.");
-  // }
 }
 
 async function upsertAdmin() {
@@ -48,7 +48,6 @@ async function upsertAdmin() {
 }
 
 async function upsertFakeStudent() {
-  // ✅ fake user-საც env-იდან ვაძლევთ ან default test
   const studentEmail = process.env.SEED_STUDENT_EMAIL || "student@test.com";
   const studentPassword = process.env.SEED_STUDENT_PASSWORD || "Student123!";
 
@@ -82,6 +81,11 @@ function buildCourses() {
     {
       slug: "frontend-development",
       type: CourseType.COURSE,
+
+      // ✅ isOnline replaced by format (+ delivery defaulted)
+      format: CourseFormat.ONLINE,
+      delivery: CourseDelivery.LIVE,
+
       titleKa: "Frontend დეველოპერი",
       titleEn: "Frontend Development",
       descriptionKa: "ისწავლე React, Next.js და TypeScript ნულიდან.",
@@ -94,26 +98,35 @@ function buildCourses() {
       formatEn: "Online",
       languageKa: "ქართული",
       languageEn: "Georgian",
+
       originalPrice: 800,
       discountedPrice: 600,
-      discount: "25%",
+      discountPercent: 25, // ✅ instead of discount: "25%"
+
       imageUrl: "/images/educationPic.webp",
-      isOnline: true,
       isGeorgia: true,
+
       syllabusKa: "HTML, CSS, JavaScript, React, Next.js, TypeScript",
       syllabusEn: "HTML, CSS, JavaScript, React, Next.js, TypeScript",
       mentorKa: "გიორგი ბაგრატიონი",
       mentorEn: "George Bagrationi",
+
       videos: [{ url: "https://youtube.com/embed/dQw4w9WgXcQ" }],
       materials: [{ link: "https://react.dev" }],
+
       startDate: now,
       endDate: addMonths(now, 1),
-      date: null, // ✅ Course-ზე date არ გვინდა
+      date: null,
     },
 
     {
       slug: "uiux-design",
       type: CourseType.COURSE,
+
+      // ✅ isOnline replaced by format
+      format: CourseFormat.ONSITE,
+      delivery: CourseDelivery.LIVE,
+
       titleKa: "UI/UX დიზაინი",
       titleEn: "UI/UX Design",
       descriptionKa: "ისწავლე ფიგმა, UX, პროტოტაირინგი და დიზაინის საფუძვლები.",
@@ -126,18 +139,22 @@ function buildCourses() {
       formatEn: "On-site",
       languageKa: "ქართული",
       languageEn: "Georgian",
+
       originalPrice: 1000,
       discountedPrice: 600,
-      discount: "30%",
+      discountPercent: 40, // ✅ instead of discount: "30%" (1000->600 is 40%)
+
       imageUrl: "/images/educationPic.webp",
-      isOnline: false,
       isGeorgia: true,
+
       syllabusKa: "Figma, UX Research, Wireframing, Prototyping",
       syllabusEn: "Figma, UX Research, Wireframing, Prototyping",
       mentorKa: "ნინი შარაშენიძე",
       mentorEn: "Nini Sharashenidze",
+
       videos: [{ url: "https://youtube.com/embed/design1" }],
       materials: [{ link: "https://figma.com" }],
+
       startDate: now,
       endDate: addMonths(now, 1),
       date: null,
@@ -152,6 +169,11 @@ function buildWorkshops() {
     {
       slug: "photoshop-workshop",
       type: CourseType.WORKSHOP,
+
+      // ✅ isOnline replaced by format
+      format: CourseFormat.ONSITE,
+      delivery: CourseDelivery.LIVE,
+
       titleKa: "ფოტოშოპის ვორკშოფი",
       titleEn: "Photoshop Workshop",
       descriptionKa: "ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი ფოტოშოპში.",
@@ -164,13 +186,14 @@ function buildWorkshops() {
       formatEn: "On-site",
       languageKa: "ქართული",
       languageEn: "Georgian",
+
       originalPrice: 150,
       discountedPrice: 120,
-      discount: "20%",
+      discountPercent: 20, // ✅ instead of discount: "20%"
+
       imageUrl: "/images/educationPic.webp",
-      isOnline: false,
       isGeorgia: true,
-      // ✅ Workshop-ზე მთავარი არის date
+
       date: addDays(now, 7),
       location: "თბილისი, GMT Plaza",
       startDate: null,
@@ -180,6 +203,11 @@ function buildWorkshops() {
     {
       slug: "ai-workshop",
       type: CourseType.WORKSHOP,
+
+      // ✅ isOnline replaced by format
+      format: CourseFormat.ONLINE,
+      delivery: CourseDelivery.LIVE,
+
       titleKa: "ხელოვნური ინტელექტის ვორკშოფი",
       titleEn: "AI Workshop",
       descriptionKa: "ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი AI-ზე.",
@@ -192,12 +220,14 @@ function buildWorkshops() {
       formatEn: "Online",
       languageKa: "ინგლისური",
       languageEn: "English",
+
       originalPrice: 0,
       discountedPrice: 0,
-      discount: null,
+      discountPercent: 0,
+
       imageUrl: "/images/educationPic.webp",
-      isOnline: true,
       isGeorgia: false,
+
       date: addDays(now, 14),
       location: "ონლაინ",
       startDate: null,
@@ -219,23 +249,14 @@ async function upsertCoursesAndWorkshops() {
       where: { slug: item.slug },
       update: {
         ...courseData,
-
-        // ✅ უსაფრთხო ვარიანტი: nested relations არ წავშალოთ ავტომატურად
         ...(videos
           ? {
-              videos: {
-                deleteMany: {}, // dev-ზე OK, prod-ზე seed ისედაც არ ეშვება
-                create: videos,
-              },
+              videos: { deleteMany: {}, create: videos },
             }
           : {}),
-
         ...(materials
           ? {
-              materials: {
-                deleteMany: {},
-                create: materials,
-              },
+              materials: { deleteMany: {}, create: materials },
             }
           : {}),
       },

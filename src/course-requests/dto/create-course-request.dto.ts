@@ -1,38 +1,36 @@
-import { CourseType, CourseCategory } from '@prisma/client';
 import {
   IsEnum,
   IsOptional,
   IsString,
-  MinLength,
-  IsUrl,
-  ValidateIf,
-  IsDateString,
   IsInt,
   Min,
-  Max,
   IsArray,
   ArrayMaxSize,
-  Matches,
-} from 'class-validator';
+} from "class-validator";
+import {
+  CourseType,
+  CourseCategory,
+  CourseDelivery,
+  CourseFormat,
+} from "@prisma/client";
 
 export class CreateCourseRequestDto {
   @IsEnum(CourseType)
   type: CourseType;
 
+  @IsOptional()
   @IsEnum(CourseCategory)
-  category: CourseCategory;
+  category?: CourseCategory;
 
-  // TEST MODE: format string ('ONLINE' | 'ONSITE')
-  @Matches(/^(ONLINE|ONSITE)$/)
-  format: 'ONLINE' | 'ONSITE';
+  @IsOptional()
+  @IsEnum(CourseFormat)
+  format?: CourseFormat;
 
-  // TEST MODE: delivery string ('LIVE' | 'VIDEO') მხოლოდ COURSE-ზე
-  @ValidateIf((o) => o.type === CourseType.COURSE)
-  @Matches(/^(LIVE|VIDEO)$/)
-  delivery?: 'LIVE' | 'VIDEO';
+  @IsOptional()
+  @IsEnum(CourseDelivery)
+  delivery?: CourseDelivery;
 
   @IsString()
-  @MinLength(3)
   titleKa: string;
 
   @IsOptional()
@@ -40,7 +38,6 @@ export class CreateCourseRequestDto {
   titleEn?: string;
 
   @IsString()
-  @MinLength(10)
   descriptionKa: string;
 
   @IsOptional()
@@ -48,65 +45,61 @@ export class CreateCourseRequestDto {
   descriptionEn?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   imageUrl?: string;
 
+  @IsOptional()
   @IsString()
-  @MinLength(2)
-  languageKa: string;
+  languageKa?: string;
 
   @IsOptional()
   @IsString()
   languageEn?: string;
 
-  @ValidateIf((o) => o.type === CourseType.COURSE)
-  @IsString()
-  @MinLength(2)
-  mentorKa?: string;
+  // ✅ Pricing (both variants)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  originalPrice?: number;
 
-  @ValidateIf((o) => o.type === CourseType.COURSE)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  discountedPrice?: number | null;
+
+  // Dates
   @IsOptional()
   @IsString()
-  mentorEn?: string;
+  date?: string; // workshop/masterclass date ISO
 
-  @ValidateIf((o) => o.type === CourseType.COURSE)
+  @IsOptional()
   @IsString()
-  @MinLength(10)
+  startDate?: string; // live course start ISO
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  // COURSE extras
+  @IsOptional()
+  @IsString()
   syllabusKa?: string;
 
-  @ValidateIf((o) => o.type === CourseType.COURSE)
   @IsOptional()
   @IsString()
   syllabusEn?: string;
 
-  @ValidateIf((o) => o.type !== CourseType.COURSE)
-  @IsDateString()
-  date?: string;
-
-  // location მაშინ როცა ONSITE
-  @ValidateIf((o) => o.format === 'ONSITE')
+  @IsOptional()
   @IsString()
-  @MinLength(2)
-  location?: string;
+  mentorKa?: string;
 
-  @ValidateIf((o) => o.type === CourseType.COURSE && o.delivery === 'LIVE')
-  @IsDateString()
-  startDate?: string;
+  @IsOptional()
+  @IsString()
+  mentorEn?: string;
 
-  @ValidateIf((o) => o.type === CourseType.COURSE && o.delivery === 'VIDEO')
+  // VIDEO urls
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(25)
-  @IsUrl({}, { each: true })
   videoUrls?: string[];
-
-  @IsInt()
-  @Min(0)
-  price: number;
-
-  @ValidateIf((o) => o.type === CourseType.COURSE)
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(100)
-  discountPercent?: number;
 }

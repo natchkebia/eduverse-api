@@ -89,33 +89,29 @@ model User {
   courses             Course[] // ✅ სურვილისამებრ: approved კურსის owner/creator
 
 }
-
 model Course {
   id               Int          @id @default(autoincrement())
   slug             String       @unique
   type             CourseType   @default(COURSE)
 
-  /** ✅ ახალი */
   category         CourseCategory @default(OTHER)
   delivery         CourseDelivery @default(LIVE)
   format           CourseFormat   @default(ONLINE)
 
-  /** ✅ სურვილისამებრ owner */
   creatorId        String?
   creator          User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
-  /** ფასი */
+  // ✅ Pricing (both variants supported)
   originalPrice    Int
-  discountedPrice  Int
-  discount         String?
+  discountedPrice  Int?          // ✅ optional
+  discountPercent  Int?          // ✅ computed
+
 
   imageUrl         String
 
-  /** ძველებიც დავტოვე რომ არაფერი დაგემტვრეს (მაგრამ ლოგიკაში არ დაეყრდნო) */
-  isOnline         Boolean      @default(false)
+
   isGeorgia        Boolean      @default(true)
 
-  /** ✅ KA REQUIRED */
   titleKa          String
   descriptionKa    String
   altTextKa        String
@@ -123,7 +119,6 @@ model Course {
   formatKa         String
   languageKa       String
 
-  /** ✅ EN OPTIONAL (რადგან EN ვერსიაზე არ გამოჩნდეს თუ არაა შევსებული) */
   titleEn          String?
   descriptionEn    String?
   altTextEn        String?
@@ -131,14 +126,12 @@ model Course {
   formatEn         String?
   languageEn       String?
 
-  /**
-   * LIVE COURSE → startDate
-   * WORKSHOP/MASTERCLASS → date
-   * VIDEO COURSE → ორივე შეიძლება null იყოს, მაგრამ videos უნდა ჰქონდეს
-   */
   startDate        DateTime?
-  endDate          DateTime?
+  endDate          DateTime?     // ✅ real course endDate (if you use it)
   date             DateTime?
+
+  // ✅ listing expiry date for cron/status
+  listingEndsAt    DateTime?
 
   location         String?
 
@@ -154,13 +147,12 @@ model Course {
 
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+
+  @@index([type, status])
+  @@index([discountPercent])
+  @@index([listingEndsAt])
 }
 
-
-/**
- * Stores user submissions BEFORE they become real Courses.
- * Admin approval creates Course from this record.
- */
 model CourseRequest {
   id               String              @id @default(uuid())
 
@@ -169,7 +161,6 @@ model CourseRequest {
 
   type             CourseType          @default(COURSE)
 
-  /** ✅ ახალი: კატეგორია/მიწოდება/ფორმატი */
   category         CourseCategory?
   delivery         CourseDelivery?
   format           CourseFormat?
@@ -180,38 +171,33 @@ model CourseRequest {
   descriptionEn    String?
   imageUrl         String?
 
-  /** ✅ COURSE-სთვის */
   syllabusKa       String?
   syllabusEn       String?
   mentorKa         String?
   mentorEn         String?
 
-  /** ✅ ენა (რადგან Course-ში გაქვს languageKa/languageEn) */
   languageKa       String?
   languageEn       String?
 
-  /** ✅ ფასები (შენი Course-ს სტილს რომ დაემთხვეს) */
+  // ✅ Pricing (both variants supported)
   originalPrice    Int?
   discountedPrice  Int?
-  discount         String?
+  discountPercent  Int?
 
-  /** ✅ WORKSHOP/MASTERCLASS-სთვის */
-  date             DateTime?
-  location         String?
 
-  /** ✅ LIVE COURSE-სთვის */
-  startDate        DateTime?
-  endDate          DateTime?
-
-  /** ✅ Listing დღეები (შენ გაქვს days/price, ვტოვებ და თან უფრო კონკრეტულად ვამატებ) */
-  days             Int?
+  // ✅ Listing payment details (separate fields)
   listingDays      Int?
   listingFee       Int?
 
-  /** ძველი price ვტოვებ backward compat-სთვის */
+  // legacy fields (optional)
+  days             Int?
   price            Int?
 
-  /** VIDEO კურსის ვიდეოები — request-ზეაც შევინახოთ რომ approve-ზე გადავიტანოთ */
+  date             DateTime?
+  location         String?
+  startDate        DateTime?
+  endDate          DateTime?
+
   requestVideos    CourseRequestVideo[]
   requestMaterials CourseRequestMaterial[]
 
@@ -222,7 +208,10 @@ model CourseRequest {
 
   @@index([creatorId])
   @@index([status])
+  @@index([discountPercent])
 }
+
+
 
 model Video {
   id        Int     @id @default(autoincrement())
