@@ -4,6 +4,8 @@ import { Strategy, Profile } from 'passport-facebook';
 
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
+  private readonly isEnabled: boolean;
+
   constructor() {
     const clientID = process.env.FACEBOOK_CLIENT_ID;
     const clientSecret = process.env.FACEBOOK_CLIENT_SECRET;
@@ -11,22 +13,24 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       process.env.FACEBOOK_CALLBACK_URL ||
       'http://localhost:3000/auth/facebook/redirect';
 
+    const enabled = Boolean(clientID && clientSecret);
     super(
-      clientID && clientSecret
+      enabled
         ? {
-            clientID,
-            clientSecret,
+            clientID: clientID!,
+            clientSecret: clientSecret!,
             callbackURL,
             profileFields: ['id', 'emails', 'name', 'picture.type(large)'],
           }
         : {
-            // ✅ fallback რომ Nest არ ჩამოვარდეს
             clientID: 'disabled',
             clientSecret: 'disabled',
             callbackURL: 'disabled',
             profileFields: [],
           },
     );
+
+    this.isEnabled = enabled;
   }
 
   async validate(
@@ -35,6 +39,11 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     profile: Profile,
     done: (error: any, user?: any) => void,
   ) {
+    // ✅ თუ env არ გაქვს — არ ვუშვებთ საერთოდ
+    if (!this.isEnabled) {
+      throw new UnauthorizedException('Facebook auth is disabled');
+    }
+
     if (!profile.emails || profile.emails.length === 0) {
       throw new UnauthorizedException('Facebook account has no email');
     }

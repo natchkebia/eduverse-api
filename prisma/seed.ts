@@ -1,3 +1,5 @@
+// prisma/seed.ts
+
 import {
   PrismaClient,
   CourseType,
@@ -10,13 +12,16 @@ import { addDays, addMonths } from "date-fns";
 
 const prisma = new PrismaClient();
 
-function assertDevSeedAllowed() {
+function assertSeedAllowed() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("❌ Seeding is disabled in production.");
   }
+  if (process.env.ALLOW_SEED !== "true") {
+    throw new Error("❌ Set ALLOW_SEED=true to run seed.");
+  }
 }
 
-async function upsertAdmin() {
+async function upsertAdmin(tx: PrismaClient) {
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
 
@@ -25,53 +30,62 @@ async function upsertAdmin() {
     return;
   }
 
-  const existingAdmin = await prisma.user.findUnique({
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+  await tx.user.upsert({
     where: { email: adminEmail },
+    update: {
+      role: Role.ADMIN,
+      verified: true,
+      // თუ არ გინდა seed-ზე ყოველ ჯერზე password reset — ეს ხაზი წაშალე
+      password: hashedPassword,
+    },
+    create: {
+      email: adminEmail,
+      password: hashedPassword,
+      name: process.env.ADMIN_NAME || "Admin",
+      surname: process.env.ADMIN_SURNAME || null,
+      role: Role.ADMIN,
+      verified: true,
+    },
   });
 
-  if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        password: hashedPassword,
-        name: process.env.ADMIN_NAME || "Admin",
-        surname: process.env.ADMIN_SURNAME || null,
-        role: Role.ADMIN,
-        verified: true,
-      },
-    });
-    console.log("✅ Admin user created");
-  } else {
-    console.log("⚠️ Admin already exists");
-  }
+  console.log("✅ Admin upserted");
 }
 
-async function upsertFakeStudent() {
-  const studentEmail = process.env.SEED_STUDENT_EMAIL || "student@test.com";
-  const studentPassword = process.env.SEED_STUDENT_PASSWORD || "Student123!";
+async function upsertFakeStudent(tx: PrismaClient) {
+  const studentEmail = process.env.SEED_STUDENT_EMAIL;
+  const studentPassword = process.env.SEED_STUDENT_PASSWORD;
 
-  const existingStudent = await prisma.user.findUnique({
+  // ✅ თუ env არ გაქვს — არ ვქმნით (hardcode აღარ)
+  if (!studentEmail || !studentPassword) {
+    console.log(
+      "ℹ️ SEED_STUDENT_EMAIL / SEED_STUDENT_PASSWORD not set — skipping fake student."
+    );
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(studentPassword, 10);
+
+  await tx.user.upsert({
     where: { email: studentEmail },
+    update: {
+      role: Role.STUDENT,
+      verified: true,
+      // სურვილისამებრ: password update
+      password: hashedPassword,
+    },
+    create: {
+      email: studentEmail,
+      password: hashedPassword,
+      name: "Test",
+      surname: "Student",
+      role: Role.STUDENT,
+      verified: true,
+    },
   });
 
-  if (!existingStudent) {
-    const hashedPassword = await bcrypt.hash(studentPassword, 10);
-    await prisma.user.create({
-      data: {
-        email: studentEmail,
-        password: hashedPassword,
-        name: "Test",
-        surname: "Student",
-        role: Role.STUDENT,
-        verified: true,
-      },
-    });
-
-    console.log("✅ Fake STUDENT user created");
-  } else {
-    console.log("⚠️ Fake STUDENT already exists");
-  }
+  console.log("✅ Fake student upserted");
 }
 
 function buildCourses() {
@@ -82,10 +96,10 @@ function buildCourses() {
       slug: "frontend-development",
       type: CourseType.COURSE,
 
-      // ✅ isOnline replaced by format (+ delivery defaulted)
       format: CourseFormat.ONLINE,
       delivery: CourseDelivery.LIVE,
 
+      // category თუ გინდა ჩაამატე: CourseCategory.TECHNOLOGY
       titleKa: "Frontend დეველოპერი",
       titleEn: "Frontend Development",
       descriptionKa: "ისწავლე React, Next.js და TypeScript ნულიდან.",
@@ -101,7 +115,7 @@ function buildCourses() {
 
       originalPrice: 800,
       discountedPrice: 600,
-      discountPercent: 25, // ✅ instead of discount: "25%"
+      discountPercent: 25,
 
       imageUrl: "/images/educationPic.webp",
       isGeorgia: true,
@@ -123,7 +137,6 @@ function buildCourses() {
       slug: "uiux-design",
       type: CourseType.COURSE,
 
-      // ✅ isOnline replaced by format
       format: CourseFormat.ONSITE,
       delivery: CourseDelivery.LIVE,
 
@@ -142,7 +155,7 @@ function buildCourses() {
 
       originalPrice: 1000,
       discountedPrice: 600,
-      discountPercent: 40, // ✅ instead of discount: "30%" (1000->600 is 40%)
+      discountPercent: 40,
 
       imageUrl: "/images/educationPic.webp",
       isGeorgia: true,
@@ -170,7 +183,6 @@ function buildWorkshops() {
       slug: "photoshop-workshop",
       type: CourseType.WORKSHOP,
 
-      // ✅ isOnline replaced by format
       format: CourseFormat.ONSITE,
       delivery: CourseDelivery.LIVE,
 
@@ -189,7 +201,7 @@ function buildWorkshops() {
 
       originalPrice: 150,
       discountedPrice: 120,
-      discountPercent: 20, // ✅ instead of discount: "20%"
+      discountPercent: 20,
 
       imageUrl: "/images/educationPic.webp",
       isGeorgia: true,
@@ -199,53 +211,16 @@ function buildWorkshops() {
       startDate: null,
       endDate: null,
     },
-
-    {
-      slug: "ai-workshop",
-      type: CourseType.WORKSHOP,
-
-      // ✅ isOnline replaced by format
-      format: CourseFormat.ONLINE,
-      delivery: CourseDelivery.LIVE,
-
-      titleKa: "ხელოვნური ინტელექტის ვორკშოფი",
-      titleEn: "AI Workshop",
-      descriptionKa: "ერთდღიანი ინტენსიური პრაქტიკული ვორკშოფი AI-ზე.",
-      descriptionEn: "One-day intensive practical AI workshop.",
-      altTextKa: "ვორკშოფი",
-      altTextEn: "Workshop",
-      buttonKa: "დაჯავშნა",
-      buttonEn: "Book now",
-      formatKa: "ონლაინ",
-      formatEn: "Online",
-      languageKa: "ინგლისური",
-      languageEn: "English",
-
-      originalPrice: 0,
-      discountedPrice: 0,
-      discountPercent: 0,
-
-      imageUrl: "/images/educationPic.webp",
-      isGeorgia: false,
-
-      date: addDays(now, 14),
-      location: "ონლაინ",
-      startDate: null,
-      endDate: null,
-    },
   ];
 }
 
-async function upsertCoursesAndWorkshops() {
-  const courses = buildCourses();
-  const workshops = buildWorkshops();
-
-  const all = [...courses, ...workshops];
+async function upsertCoursesAndWorkshops(tx: PrismaClient) {
+  const all = [...buildCourses(), ...buildWorkshops()];
 
   for (const item of all) {
     const { videos, materials, ...courseData } = item as any;
 
-    await prisma.course.upsert({
+    await tx.course.upsert({
       where: { slug: item.slug },
       update: {
         ...courseData,
@@ -270,15 +245,19 @@ async function upsertCoursesAndWorkshops() {
 }
 
 async function main() {
-  assertDevSeedAllowed();
+  assertSeedAllowed();
 
-  await upsertAdmin();
-  await upsertFakeStudent();
-  await upsertCoursesAndWorkshops();
+  await prisma.$transaction(async (tx) => {
+    await upsertAdmin(tx as any);
+    await upsertFakeStudent(tx as any);
+    await upsertCoursesAndWorkshops(tx as any);
+  });
 
   console.log("🌱 Seed completed successfully!");
 }
 
 main()
   .catch((err) => console.error("❌ Seed failed:", err))
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
