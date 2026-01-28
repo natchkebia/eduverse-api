@@ -1,11 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ⭐ NEW — get all users for admin panel
   async getAllUsers() {
     return this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
@@ -21,7 +20,6 @@ export class UsersService {
     });
   }
 
-  // Existing functionality…
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -36,7 +34,7 @@ export class UsersService {
       },
     });
 
-    if (!user) throw new Error('მომხმარებელი ვერ მოიძებნა');
+    if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
@@ -48,8 +46,6 @@ export class UsersService {
   }
 
   async findById(userId: string) {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    return this.prisma.user.findUnique({ where: { id: userId } });
   }
 }

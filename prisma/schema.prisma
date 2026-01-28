@@ -29,7 +29,6 @@ enum CourseStatus {
 
 /**
  * User-submitted listing lifecycle (pre-publish).
- * Separate from CourseStatus to keep existing logic intact.
  */
 enum CourseRequestStatus {
   DRAFT
@@ -40,7 +39,6 @@ enum CourseRequestStatus {
   REJECTED
 }
 
-/** ✅ შენი 14 კატეგორია */
 enum CourseCategory {
   TECHNOLOGY
   DESIGN
@@ -58,13 +56,11 @@ enum CourseCategory {
   OTHER
 }
 
-/** ✅ კურსის მიწოდების ტიპი */
 enum CourseDelivery {
   LIVE
   VIDEO
 }
 
-/** ✅ ფორმატი (online/onsite) */
 enum CourseFormat {
   ONLINE
   ONSITE
@@ -81,7 +77,6 @@ model User {
   provider            String?
   avatar              String?
 
-  // ✅ tokens — უკეთესია უნიკალური
   resetToken          String?  @unique
   resetTokenExpires   DateTime?
   verified            Boolean  @default(false)
@@ -92,7 +87,7 @@ model User {
   updatedAt           DateTime @updatedAt
 
   courseRequests      CourseRequest[]
-  courses             Course[] // ✅ სურვილისამებრ: approved კურსის owner/creator
+  courses             Course[]
 }
 
 model Course {
@@ -107,44 +102,41 @@ model Course {
   creatorId        String?
   creator          User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
-  // ✅ Pricing
   originalPrice    Int
   discountedPrice  Int?
   discountPercent  Int?
 
   imageUrl         String
 
+  // ✅ Workshop/LIVE extra location fields
+  address          String?
+  onlineUrl        String?
+
   isGeorgia        Boolean        @default(true)
 
+  // ✅ i18n texts
   titleKa          String
   descriptionKa    String
-  altTextKa        String
-  buttonKa         String
-  formatKa         String
-  languageKa       String
+  syllabusKa       String?
+  mentorBioKa      String?
+  mentorFirstNameKa String?
+  mentorLastNameKa  String?
 
   titleEn          String?
   descriptionEn    String?
-  altTextEn        String?
-  buttonEn         String?
-  formatEn         String?
-  languageEn       String?
+  syllabusEn       String?
+  mentorBioEn      String?
+  mentorFirstNameEn String?
+  mentorLastNameEn  String?
 
+  // Dates
   startDate        DateTime?
   endDate          DateTime?
-  date             DateTime?
+  date             DateTime? // workshop/masterclass date
 
-  // ✅ listing expiry date for cron/status
   listingEndsAt    DateTime?
 
-  location         String?
-
   status           CourseStatus   @default(ACTIVE)
-
-  syllabusKa       String?
-  syllabusEn       String?
-  mentorKa         String?
-  mentorEn         String?
 
   videos           Video[]
   materials        Material[]
@@ -155,8 +147,6 @@ model Course {
   @@index([type, status])
   @@index([discountPercent])
   @@index([listingEndsAt])
-
-  // ✅ useful filters
   @@index([category])
   @@index([format])
   @@index([delivery])
@@ -167,7 +157,6 @@ model CourseRequest {
   id               String              @id @default(uuid())
 
   creatorId        String
-  // ✅ audit/history რომ არ დაიკარგოს
   creator          User                @relation(fields: [creatorId], references: [id], onDelete: Restrict)
 
   type             CourseType          @default(COURSE)
@@ -176,19 +165,24 @@ model CourseRequest {
   delivery         CourseDelivery?
   format           CourseFormat?
 
+  // ✅ i18n texts (KA required; EN auto-generated on submit)
   titleKa          String
-  titleEn          String?
   descriptionKa    String
-  descriptionEn    String?
-  imageUrl         String?
-
   syllabusKa       String?
-  syllabusEn       String?
-  mentorKa         String?
-  mentorEn         String?
+  mentorBioKa      String?
+  mentorFirstNameKa String?
+  mentorLastNameKa  String?
 
-  languageKa       String?
-  languageEn       String?
+  titleEn          String?
+  descriptionEn    String?
+  syllabusEn       String?
+  mentorBioEn      String?
+  mentorFirstNameEn String?
+  mentorLastNameEn  String?
+
+  enAutoTranslated Boolean            @default(false)
+
+  imageUrl         String?
 
   // ✅ Pricing
   originalPrice    Int?
@@ -199,12 +193,13 @@ model CourseRequest {
   listingDays      Int?
   listingFee       Int?
 
-  // legacy fields (optional)
-  days             Int?
-  price            Int?
-
+  // ✅ Event fields (workshop/masterclass)
   date             DateTime?
-  location         String?
+  // ✅ Online/Onsite specifics
+  address          String?
+  onlineUrl        String?
+
+  // ✅ Live course schedule
   startDate        DateTime?
   endDate          DateTime?
 
@@ -239,7 +234,6 @@ model Material {
   @@index([courseId])
 }
 
-/** ✅ Request-ზე ვიდეოების შენახვა */
 model CourseRequestVideo {
   id              Int           @id @default(autoincrement())
   url             String
@@ -251,7 +245,6 @@ model CourseRequestVideo {
   @@index([courseRequestId])
 }
 
-/** ✅ Request-ზე მასალების შენახვა */
 model CourseRequestMaterial {
   id              Int           @id @default(autoincrement())
   link            String

@@ -14,45 +14,51 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
-import { SetCourseRequestDetailsDto } from './dto/set-course-request-details.dto';
+import { SetListingDto } from './dto/set-course-request-details.dto';
 
 @Controller('course-requests')
 export class CourseRequestsController {
   constructor(private readonly service: CourseRequestsService) {}
 
-  // USER — create draft
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Req() req: any, @Body() dto: CreateCourseRequestDto) {
     return this.service.createDraft(req.user.id, dto);
   }
 
-  // USER — set days & price
-  @Patch(':id/details')
+  @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  setDetails(
+  update(
     @Req() req: any,
     @Param('id') id: string,
-    @Body() dto: SetCourseRequestDetailsDto,
+    @Body() dto: Partial<CreateCourseRequestDto>,
   ) {
-    return this.service.setDetails(id, req.user.id, dto.days, dto.price);
+    return this.service.updateDraft(id, req.user.id, dto);
   }
 
-  // USER — fake payment (optional)
+  @Patch(':id/listing')
+  @UseGuards(JwtAuthGuard)
+  setListing(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: SetListingDto,
+  ) {
+    return this.service.setListing(id, req.user.id, dto.listingDays);
+  }
+
   @Patch(':id/pay')
   @UseGuards(JwtAuthGuard)
   pay(@Req() req: any, @Param('id') id: string) {
     return this.service.markAsPaid(id, req.user.id);
   }
 
-  // USER — submit to admin
+  // ✅ submit: USER -> PENDING_APPROVAL, ADMIN -> auto approve + publish
   @Patch(':id/submit')
   @UseGuards(JwtAuthGuard)
   submit(@Req() req: any, @Param('id') id: string) {
-    return this.service.submitForApproval(id, req.user.id);
+    return this.service.submitForApproval(id, req.user.id, req.user.role);
   }
 
-  // ADMIN — list pending approvals
   @Get('admin/pending')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -60,7 +66,6 @@ export class CourseRequestsController {
     return this.service.getPendingRequests();
   }
 
-  // ADMIN — approve
   @Patch('admin/:id/approve')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -68,7 +73,6 @@ export class CourseRequestsController {
     return this.service.approve(id);
   }
 
-  // ADMIN — reject
   @Patch('admin/:id/reject')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

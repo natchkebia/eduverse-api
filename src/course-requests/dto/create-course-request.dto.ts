@@ -6,13 +6,14 @@ import {
   Min,
   IsArray,
   ArrayMaxSize,
-} from "class-validator";
+  IsUrl,
+} from 'class-validator';
 import {
   CourseType,
   CourseCategory,
   CourseDelivery,
   CourseFormat,
-} from "@prisma/client";
+} from '@prisma/client';
 
 export class CreateCourseRequestDto {
   @IsEnum(CourseType)
@@ -30,15 +31,34 @@ export class CreateCourseRequestDto {
   @IsEnum(CourseDelivery)
   delivery?: CourseDelivery;
 
+  // ✅ KA required
   @IsString()
   titleKa: string;
 
+  @IsString()
+  descriptionKa: string;
+
+  // COURSE-only
+  @IsOptional()
+  @IsString()
+  syllabusKa?: string;
+
+  @IsOptional()
+  @IsString()
+  mentorFirstNameKa?: string;
+
+  @IsOptional()
+  @IsString()
+  mentorLastNameKa?: string;
+
+  @IsOptional()
+  @IsString()
+  mentorBioKa?: string;
+
+  // ✅ EN optional (NO auto-translate anymore)
   @IsOptional()
   @IsString()
   titleEn?: string;
-
-  @IsString()
-  descriptionKa: string;
 
   @IsOptional()
   @IsString()
@@ -46,17 +66,26 @@ export class CreateCourseRequestDto {
 
   @IsOptional()
   @IsString()
+  syllabusEn?: string;
+
+  @IsOptional()
+  @IsString()
+  mentorFirstNameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  mentorLastNameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  mentorBioEn?: string;
+
+  // ✅ media
+  @IsOptional()
+  @IsUrl()
   imageUrl?: string;
 
-  @IsOptional()
-  @IsString()
-  languageKa?: string;
-
-  @IsOptional()
-  @IsString()
-  languageEn?: string;
-
-  // ✅ Pricing (both variants)
+  // ✅ Pricing
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -67,39 +96,33 @@ export class CreateCourseRequestDto {
   @Min(0)
   discountedPrice?: number | null;
 
-  // Dates
+  // ✅ Workshop/masterclass date
   @IsOptional()
   @IsString()
-  date?: string; // workshop/masterclass date ISO
+  date?: string; // ISO string
+
+  // ✅ Live course start
+  @IsOptional()
+  @IsString()
+  startDate?: string; // ISO
 
   @IsOptional()
   @IsString()
-  startDate?: string; // live course start ISO
+  endDate?: string; // ISO (optional)
 
+  // ✅ Online/Onsite specifics
   @IsOptional()
   @IsString()
-  location?: string;
-
-  // COURSE extras
-  @IsOptional()
-  @IsString()
-  syllabusKa?: string;
+  address?: string; // onsite
 
   @IsOptional()
-  @IsString()
-  syllabusEn?: string;
+  @IsUrl()
+  onlineUrl?: string; // online
 
-  @IsOptional()
-  @IsString()
-  mentorKa?: string;
-
-  @IsOptional()
-  @IsString()
-  mentorEn?: string;
-
-  // VIDEO urls
+  // ✅ VIDEO urls
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(25)
+  @IsUrl({}, { each: true })
   videoUrls?: string[];
 }

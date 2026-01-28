@@ -3,7 +3,7 @@ import {
   CourseDelivery,
   CourseFormat,
   CourseType,
-} from "@prisma/client";
+} from '@prisma/client';
 import {
   IsEnum,
   IsInt,
@@ -11,8 +11,8 @@ import {
   IsString,
   Min,
   Max,
-  ValidateIf,
-} from "class-validator";
+  IsUrl,
+} from 'class-validator';
 
 export class CreateCourseDto {
   @IsString()
@@ -34,12 +34,17 @@ export class CreateCourseDto {
   @IsEnum(CourseFormat)
   format?: CourseFormat;
 
+  // ✅ Workshop/LIVE extra location fields
   @IsOptional()
   @IsString()
-  location?: string;
+  address?: string; // ONSITE
 
   @IsOptional()
-  isGeorgia?: boolean; // თუ გინდა, უკეთესია DTO-ში Boolean ვალიდაციაც დავუმატოთ
+  @IsUrl()
+  onlineUrl?: string; // ONLINE
+
+  @IsOptional()
+  isGeorgia?: boolean;
 
   // ✅ Pricing
   @IsInt()
@@ -51,32 +56,32 @@ export class CreateCourseDto {
   @Min(0)
   discountedPrice?: number | null;
 
-  // ❗ არ ვიღებთ discountPercent-ს ფრონტიდან
-  // ❗ სერვისი თვითონ ითვლის
-
   @IsString()
   imageUrl: string;
 
-  /** ✅ KA required */
+  // ✅ i18n
   @IsString()
   titleKa: string;
 
   @IsString()
   descriptionKa: string;
 
+  @IsOptional()
   @IsString()
-  altTextKa: string;
+  syllabusKa?: string;
 
+  @IsOptional()
   @IsString()
-  buttonKa: string;
+  mentorFirstNameKa?: string;
 
+  @IsOptional()
   @IsString()
-  formatKa: string;
+  mentorLastNameKa?: string;
 
+  @IsOptional()
   @IsString()
-  languageKa: string;
+  mentorBioKa?: string;
 
-  /** ✅ EN optional */
   @IsOptional()
   @IsString()
   titleEn?: string;
@@ -87,32 +92,37 @@ export class CreateCourseDto {
 
   @IsOptional()
   @IsString()
-  altTextEn?: string;
+  syllabusEn?: string;
 
   @IsOptional()
   @IsString()
-  buttonEn?: string;
+  mentorFirstNameEn?: string;
 
   @IsOptional()
   @IsString()
-  formatEn?: string;
+  mentorLastNameEn?: string;
 
   @IsOptional()
   @IsString()
-  languageEn?: string;
+  mentorBioEn?: string;
 
-  // ✅ listing duration days (for listingEndsAt)
+  // ✅ Dates
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  date?: string; // workshop/masterclass date
+
+  // ✅ listing duration (days) → listingEndsAt
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(365)
-  duration: number;
-
-  /**
-   * თუ ტიპი WORKSHOP-ია, ჩვეულებრივ "date" საჭიროა.
-   * (თუ შენს ლოგიკაში სხვანაირადაა, ეს ნაწილი მოიშორე)
-   */
-  @ValidateIf((o: CreateCourseDto) => o.type === "WORKSHOP")
-  @IsOptional()
-  // Date string-ის ვალიდაცია უკეთესია IsDateString-ით, მაგრამ შენ აქ არ გაქვს შემოტანილი
-  date?: string;
+  listingDays?: number;
 }
