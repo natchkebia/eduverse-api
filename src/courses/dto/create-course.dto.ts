@@ -57,6 +57,7 @@ export class CreateCourseDto {
   discountedPrice?: number | null;
 
   @IsString()
+  @IsUrl()
   imageUrl: string;
 
   // ✅ i18n

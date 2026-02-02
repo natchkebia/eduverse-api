@@ -438,10 +438,10 @@ export class CourseRequestsService {
     if (updated.type !== CourseType.COURSE) {
       this.require(!!updated.date, 'Date is required for workshop/masterclass');
       this.require(!!updated.listingDays, 'listingDays required');
-      this.require(
-        updated.status === CourseRequestStatus.PAID,
-        'Payment required (pay first)',
-      );
+      // this.require(
+      //   updated.status === CourseRequestStatus.PAID,
+      //   'Payment required (pay first)',
+      // );
 
       if (adminAutoPublish) {
         await this.prisma.courseRequest.update({
@@ -516,10 +516,10 @@ export class CourseRequestsService {
       !!updated.listingDays,
       'listingDays required for live course listing',
     );
-    this.require(
-      updated.status === CourseRequestStatus.PAID,
-      'Payment required (pay first)',
-    );
+    // this.require(
+    //   updated.status === CourseRequestStatus.PAID,
+    //   'Payment required (pay first)',
+    // );
 
     if (adminAutoPublish) {
       await this.prisma.courseRequest.update({
@@ -656,6 +656,8 @@ export class CourseRequestsService {
     });
   }
 
+// ... (წინა კოდი)
+
   async reject(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
@@ -667,4 +669,33 @@ export class CourseRequestsService {
       data: { status: CourseRequestStatus.REJECTED },
     });
   }
-}
+
+  // ✅ ზუსტად აქ ჩასვი, reject-ის ქვემოთ:
+  async adminUpdateRequest(id: string, dto: any) {
+    const request = await this.prisma.courseRequest.findUnique({
+      where: { id },
+    });
+    if (!request) throw new NotFoundException('Course request not found');
+
+    let pricingData = {};
+    if (dto.originalPrice !== undefined) {
+      const p = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
+      pricingData = {
+        originalPrice: p.originalPrice,
+        discountedPrice: p.discountedPrice,
+        discountPercent: p.discountPercent,
+      };
+    }
+
+    return this.prisma.courseRequest.update({
+      where: { id },
+      data: {
+        ...dto,
+        ...pricingData,
+        date: dto.date ? new Date(dto.date) : undefined,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      },
+    });
+  }
+} 

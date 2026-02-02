@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 
 import { CoursesService } from './courses.service';
+import { CloudinaryService } from '../course-requests/cloudinary.service'; 
 import { CreateCourseDto } from './dto/create-course.dto';
 import { ExtendCourseDto } from './dto/extend-course.dto';
 
@@ -21,13 +22,13 @@ import { Role, CourseType } from '@prisma/client';
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(
+    private readonly coursesService: CoursesService,
+    private readonly cloudinaryService: CloudinaryService, 
+  ) {}
 
   /**
    * ✅ ROOT ENDPOINT
-   * Supports:
-   *  - /courses?type=COURSE&locale=ka
-   *  - /courses?type=WORKSHOP&locale=en
    */
   @Get()
   async getCourses(
@@ -39,7 +40,6 @@ export class CoursesController {
 
   /**
    * 🔍 SEARCH
-   * /courses/search?query=react&locale=en
    */
   @Get('search')
   async searchCourses(
@@ -52,10 +52,6 @@ export class CoursesController {
     return this.coursesService.searchCourses(query, locale);
   }
 
-  /**
-   * 🌍 PUBLIC COURSES
-   * /courses/public?type=COURSE&locale=en
-   */
   @Get('public')
   getPublicCourses(
     @Query('type') type?: CourseType,
@@ -70,8 +66,36 @@ export class CoursesController {
   }
 
   /**
-   * 🔐 ADMIN
+   * 🔐 ADMIN: სრული რედაქტირება
    */
+  @Patch('admin/:id/edit')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async adminEditCourse(@Param('id') id: string, @Body() dto: any) {
+    return this.coursesService.updateCourse(Number(id), dto);
+  }
+
+  /**
+   * 🔐 ADMIN: სურათის წაშლა (Cloudinary + DB)
+   */
+  @Patch('admin/:id/remove-image')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async removeCourseImage(@Param('id') id: string) {
+    const course = await this.coursesService.findOneById(Number(id));
+    
+    if (!course) {
+      throw new NotFoundException('კურსი ვერ მოიძებნა');
+    }
+
+    if (course.imageUrl) {
+      await this.cloudinaryService.deleteImage(course.imageUrl);
+      return this.coursesService.updateCourseImage(Number(id), null);
+    }
+
+    return { message: 'სურათი უკვე წაშლილია' };
+  }
+
   @Get('admin/expiring')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -108,7 +132,7 @@ export class CoursesController {
   }
 
   /**
-   * ✍️ CREATE / EXTEND (ADMIN ONLY)
+   * ✍️ CREATE / EXTEND
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
