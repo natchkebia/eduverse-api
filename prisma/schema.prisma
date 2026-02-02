@@ -66,6 +66,12 @@ enum CourseFormat {
   ONSITE
 }
 
+enum TeachingLanguage {
+  KA
+  EN
+}
+
+
 model User {
   id                  String   @id @default(uuid())
   email               String   @unique
@@ -94,6 +100,7 @@ model Course {
   id               Int            @id @default(autoincrement())
   slug             String         @unique
   type             CourseType     @default(COURSE)
+  teachingLanguage TeachingLanguage @default(KA)
 
   category         CourseCategory @default(OTHER)
   delivery         CourseDelivery @default(LIVE)
@@ -160,6 +167,7 @@ model CourseRequest {
   creator          User                @relation(fields: [creatorId], references: [id], onDelete: Restrict)
 
   type             CourseType          @default(COURSE)
+  teachingLanguage TeachingLanguage @default(KA)
 
   category         CourseCategory?
   delivery         CourseDelivery?

@@ -13,6 +13,7 @@ import {
   CourseCategory,
   CourseDelivery,
   CourseFormat,
+  TeachingLanguage,
 } from '@prisma/client';
 
 export class CreateCourseRequestDto {
@@ -30,6 +31,11 @@ export class CreateCourseRequestDto {
   @IsOptional()
   @IsEnum(CourseDelivery)
   delivery?: CourseDelivery;
+
+  // ✅ NEW: Teaching language (KA/EN)
+  @IsOptional()
+  @IsEnum(TeachingLanguage)
+  teachingLanguage?: TeachingLanguage;
 
   // ✅ KA required
   @IsString()

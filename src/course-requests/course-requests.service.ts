@@ -12,6 +12,7 @@ import {
   CourseDelivery,
   CourseFormat,
   Role,
+  TeachingLanguage,
 } from '@prisma/client';
 import { addDays } from 'date-fns';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
@@ -65,9 +66,9 @@ export class CourseRequestsService {
   }
 
   /**
-   * ✅ EN group წესები:
-   * - თუ titleEn მოვიდა -> descriptionEn აუცილებელია (და COURSE-ზე syllabusEnაც)
-   * - mentorFirstNameEn და mentorLastNameEn ან ორივე ერთად, ან არცერთი
+   * ✅ EN group rules:
+   * - if titleEn exists -> descriptionEn required (and for COURSE syllabusEn checked in submit)
+   * - mentorFirstNameEn and mentorLastNameEn must be both or none
    */
   private validateEnglishGroupOnDto(dto: Partial<CreateCourseRequestDto>) {
     const titleEn = this.trimOrNull(dto.titleEn);
@@ -82,14 +83,12 @@ export class CourseRequestsService {
     const anyMentorNameEn = !!(mfEn || mlEn);
     const anyMentorEn = anyMentorNameEn || !!mbEn;
 
-    // content group: თუ რომელიმეა შევსებული, title+desc მაინც იყოს
     if (anyContentEn) {
       this.require(!!titleEn, 'titleEn required when providing English fields');
       this.require(
         !!descEn,
         'descriptionEn required when providing English fields',
       );
-      // syllabusEn required only for COURSE when english is provided (validate at submit)
     }
 
     if (anyMentorEn) {
@@ -121,7 +120,6 @@ export class CourseRequestsService {
         !!descEn,
         'descriptionEn required when English content is provided',
       );
-      // syllabusEn required only for COURSE in submit validation
     }
 
     if (anyMentorEn) {
@@ -136,7 +134,6 @@ export class CourseRequestsService {
   async createDraft(userId: string, dto: CreateCourseRequestDto) {
     this.validateEnglishGroupOnDto(dto);
 
-    // delivery only meaningful for COURSE
     const delivery =
       dto.type === CourseType.COURSE
         ? dto.delivery ?? CourseDelivery.LIVE
@@ -188,7 +185,7 @@ export class CourseRequestsService {
     const mentorBioKa =
       dto.type === CourseType.COURSE ? this.trimOrNull(dto.mentorBioKa) : null;
 
-    // EN -> store or null
+    // EN
     const titleEn = this.trimOrNull(dto.titleEn);
     const descriptionEn = this.trimOrNull(dto.descriptionEn);
     const syllabusEn = this.trimOrNull(dto.syllabusEn);
@@ -196,6 +193,9 @@ export class CourseRequestsService {
     const mentorFirstNameEn = this.trimOrNull(dto.mentorFirstNameEn);
     const mentorLastNameEn = this.trimOrNull(dto.mentorLastNameEn);
     const mentorBioEn = this.trimOrNull(dto.mentorBioEn);
+
+    // ✅ NEW: teachingLanguage
+    const teachingLanguage = dto.teachingLanguage ?? TeachingLanguage.KA;
 
     return this.prisma.courseRequest.create({
       data: {
@@ -205,6 +205,9 @@ export class CourseRequestsService {
         category: dto.category ?? null,
         format: format as any,
         delivery: delivery as any,
+
+        // ✅ NEW
+        teachingLanguage,
 
         titleKa,
         descriptionKa,
@@ -305,6 +308,9 @@ export class CourseRequestsService {
         format: dto.format ?? undefined,
         delivery: (nextDelivery as any) ?? undefined,
 
+        // ✅ NEW
+        teachingLanguage: dto.teachingLanguage ?? undefined,
+
         titleKa: dto.titleKa ?? undefined,
         descriptionKa: dto.descriptionKa ?? undefined,
         syllabusKa: dto.syllabusKa ?? undefined,
@@ -312,7 +318,7 @@ export class CourseRequestsService {
         mentorLastNameKa: dto.mentorLastNameKa ?? undefined,
         mentorBioKa: dto.mentorBioKa ?? undefined,
 
-        // ✅ EN: store as-is, never translate
+        // EN: store as-is
         titleEn:
           dto.titleEn !== undefined ? this.trimOrNull(dto.titleEn) : undefined,
         descriptionEn:
@@ -412,6 +418,9 @@ export class CourseRequestsService {
     this.require(!!updated.titleKa?.trim(), 'Title (KA) is required');
     this.require(!!updated.descriptionKa?.trim(), 'Description (KA) is required');
 
+    // ✅ NEW: require teaching language (remove if you want it optional)
+    this.require(!!updated.teachingLanguage, 'Teaching language is required');
+
     // format-specific
     if (updated.format === CourseFormat.ONSITE) {
       this.require(!!updated.address?.trim(), 'Address is required for on-site');
@@ -459,7 +468,7 @@ export class CourseRequestsService {
       'Mentor last name is required',
     );
 
-    // ✅ if English content exists on COURSE -> require syllabusEn too
+    // if English content exists on COURSE -> require syllabusEn too
     const anyContentEn =
       !!this.trimOrNull(updated.titleEn) ||
       !!this.trimOrNull(updated.descriptionEn) ||
@@ -492,7 +501,6 @@ export class CourseRequestsService {
         return this.approve(requestId);
       }
 
-      // ✅ VIDEO course: no listing/payment required
       return this.prisma.courseRequest.update({
         where: { id: requestId },
         data: {
@@ -590,6 +598,9 @@ export class CourseRequestsService {
 
           address: request.address,
           onlineUrl: request.onlineUrl,
+
+          // ✅ NEW: teaching language copied to Course
+          teachingLanguage: request.teachingLanguage ?? TeachingLanguage.KA,
 
           // i18n
           titleKa: request.titleKa,
