@@ -14,11 +14,13 @@ export class CloudinaryService {
   getUploadSignature() {
     const timestamp = Math.round(new Date().getTime() / 1000);
     const folder = 'eduverse_courses';
+    const upload_preset = 'eduverse_preset'; // ✅ პრესეტის დასახელება
 
     const signature = cloudinary.utils.api_sign_request(
       {
         timestamp: timestamp,
         folder: folder,
+        upload_preset: upload_preset, // ✅ ხელმოწერა იქმნება პრესეტის გათვალისწინებით
       },
       process.env.CLOUDINARY_API_SECRET,
     );
@@ -29,16 +31,15 @@ export class CloudinaryService {
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
       apiKey: process.env.CLOUDINARY_API_KEY,
       folder,
+      upload_preset, // ვაბრუნებთ, რომ ფრონტენდმაც გამოიყენოს
     };
   }
 
-  // ✅ ახალი მეთოდი: სურათის წაშლა Cloudinary-დან
   async deleteImage(imageUrl: string) {
     try {
-      // ამოვიღოთ public_id URL-დან (მაგ: eduverse_courses/abc12345)
       const splitUrl = imageUrl.split('/');
-      const lastPart = splitUrl[splitUrl.length - 1]; // image.jpg
-      const folder = splitUrl[splitUrl.length - 2];   // eduverse_courses
+      const lastPart = splitUrl[splitUrl.length - 1];
+      const folder = splitUrl[splitUrl.length - 2];
       const publicId = `${folder}/${lastPart.split('.')[0]}`;
 
       const result = await cloudinary.uploader.destroy(publicId);
