@@ -8,23 +8,24 @@ import {
   Patch,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 
 import { CoursesService } from './courses.service';
-import { CloudinaryService } from '../course-requests/cloudinary.service'; 
+import { CloudinaryService } from '../course-requests/cloudinary.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { ExtendCourseDto } from './dto/extend-course.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role, CourseType } from '@prisma/client';
+import { Role, CourseType, CourseStatus } from '@prisma/client';
 
 @Controller('courses')
 export class CoursesController {
   constructor(
     private readonly coursesService: CoursesService,
-    private readonly cloudinaryService: CloudinaryService, 
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   /**
@@ -36,6 +37,17 @@ export class CoursesController {
     @Query('locale') locale: string = 'ka',
   ) {
     return this.coursesService.getPublicCourses(type, locale);
+  }
+
+  /**
+   * ✅ USER: MY CREATED COURSES
+   * GET /courses/my
+   * Optional: /courses/my?status=ACTIVE
+   */
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  async getMyCourses(@Req() req: any, @Query('status') status?: CourseStatus) {
+    return this.coursesService.getMyCourses(req.user.id, status);
   }
 
   /**
@@ -83,7 +95,7 @@ export class CoursesController {
   @Roles(Role.ADMIN)
   async removeCourseImage(@Param('id') id: string) {
     const course = await this.coursesService.findOneById(Number(id));
-    
+
     if (!course) {
       throw new NotFoundException('კურსი ვერ მოიძებნა');
     }
@@ -144,10 +156,7 @@ export class CoursesController {
   @Patch('extend/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  async extendCourse(
-    @Param('id') id: string,
-    @Body() body: ExtendCourseDto,
-  ) {
+  async extendCourse(@Param('id') id: string, @Body() body: ExtendCourseDto) {
     return this.coursesService.extendCourse(Number(id), body.duration);
   }
 }

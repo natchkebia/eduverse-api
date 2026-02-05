@@ -6,13 +6,32 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { addDays, addHours } from 'date-fns';
-import { CourseStatus, CourseType, CourseDelivery, CourseFormat } from '@prisma/client';
+import {
+  CourseStatus,
+  CourseType,
+  CourseDelivery,
+  CourseFormat,
+} from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { computePricing } from '../common/pricing/pricing';
 
 @Injectable()
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * ✅ USER: get my created courses
+   */
+  async getMyCourses(userId: string, status?: CourseStatus) {
+    return this.prisma.course.findMany({
+      where: {
+        creatorId: userId,
+        ...(status ? { status } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { videos: true, materials: true },
+    });
+  }
 
   async searchCourses(query: string, locale: string = 'ka') {
     const isEn = locale === 'en';
@@ -114,7 +133,7 @@ export class CoursesService {
   async updateCourseImage(id: number, imageUrl: string | null) {
     return this.prisma.course.update({
       where: { id },
-      data: { imageUrl: imageUrl ?? "" },
+      data: { imageUrl: imageUrl ?? '' },
     });
   }
 
@@ -129,7 +148,9 @@ export class CoursesService {
     const type = dto.type ?? CourseType.COURSE;
     const format = dto.format ?? CourseFormat.ONLINE;
     const delivery = dto.delivery ?? CourseDelivery.LIVE;
-    const listingEndsAt = dto.listingDays ? addDays(new Date(), dto.listingDays) : null;
+    const listingEndsAt = dto.listingDays
+      ? addDays(new Date(), dto.listingDays)
+      : null;
 
     return this.prisma.course.create({
       data: {
@@ -182,7 +203,7 @@ export class CoursesService {
   @Cron(CronExpression.EVERY_10_MINUTES)
   async updateCourseStatuses() {
     const now = new Date();
-    const in24Hours = addHours(now, 24); // ✅ გასწორდა: ცვლადის სახელი
+    const in24Hours = addHours(now, 24);
 
     await this.prisma.course.updateMany({
       where: {
