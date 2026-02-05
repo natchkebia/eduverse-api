@@ -32,19 +32,16 @@ export class CreateCourseRequestDto {
   @IsEnum(CourseDelivery)
   delivery?: CourseDelivery;
 
-  // ✅ NEW: Teaching language (KA/EN)
   @IsOptional()
   @IsEnum(TeachingLanguage)
   teachingLanguage?: TeachingLanguage;
 
-  // ✅ KA required
   @IsString()
   titleKa: string;
 
   @IsString()
   descriptionKa: string;
 
-  // COURSE-only
   @IsOptional()
   @IsString()
   syllabusKa?: string;
@@ -61,7 +58,6 @@ export class CreateCourseRequestDto {
   @IsString()
   mentorBioKa?: string;
 
-  // ✅ EN optional (NO auto-translate anymore)
   @IsOptional()
   @IsString()
   titleEn?: string;
@@ -86,12 +82,10 @@ export class CreateCourseRequestDto {
   @IsString()
   mentorBioEn?: string;
 
-  // ✅ media
   @IsOptional()
   @IsUrl()
   imageUrl?: string;
 
-  // ✅ Pricing
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -102,30 +96,26 @@ export class CreateCourseRequestDto {
   @Min(0)
   discountedPrice?: number | null;
 
-  // ✅ Workshop/masterclass date
   @IsOptional()
   @IsString()
-  date?: string; // ISO string
+  date?: string; // ISO
 
-  // ✅ Live course start
   @IsOptional()
   @IsString()
   startDate?: string; // ISO
 
   @IsOptional()
   @IsString()
-  endDate?: string; // ISO (optional)
+  endDate?: string; // ISO
 
-  // ✅ Online/Onsite specifics
   @IsOptional()
   @IsString()
-  address?: string; // onsite
+  address?: string;
 
   @IsOptional()
   @IsUrl()
-  onlineUrl?: string; // online
+  onlineUrl?: string;
 
-  // ✅ VIDEO urls
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(25)

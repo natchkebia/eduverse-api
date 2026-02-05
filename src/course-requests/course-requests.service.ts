@@ -65,11 +65,6 @@ export class CourseRequestsService {
     if (!condition) throw new BadRequestException(message);
   }
 
-  /**
-   * ✅ EN group rules:
-   * - if titleEn exists -> descriptionEn required (and for COURSE syllabusEn checked in submit)
-   * - mentorFirstNameEn and mentorLastNameEn must be both or none
-   */
   private validateEnglishGroupOnDto(dto: Partial<CreateCourseRequestDto>) {
     const titleEn = this.trimOrNull(dto.titleEn);
     const descEn = this.trimOrNull(dto.descriptionEn);
@@ -112,14 +107,8 @@ export class CourseRequestsService {
     const anyMentorEn = !!(mfEn || mlEn || mbEn);
 
     if (anyContentEn) {
-      this.require(
-        !!titleEn,
-        'titleEn required when English content is provided',
-      );
-      this.require(
-        !!descEn,
-        'descriptionEn required when English content is provided',
-      );
+      this.require(!!titleEn, 'titleEn required when English content is provided');
+      this.require(!!descEn, 'descriptionEn required when English content is provided');
     }
 
     if (anyMentorEn) {
@@ -130,7 +119,6 @@ export class CourseRequestsService {
     }
   }
 
-  // STEP 1 — create draft
   async createDraft(userId: string, dto: CreateCourseRequestDto) {
     this.validateEnglishGroupOnDto(dto);
 
@@ -139,7 +127,6 @@ export class CourseRequestsService {
         ? dto.delivery ?? CourseDelivery.LIVE
         : null;
 
-    // pricing
     let pricing = {
       originalPrice: 0,
       discountedPrice: null as number | null,
@@ -159,13 +146,21 @@ export class CourseRequestsService {
           }
         : undefined;
 
-    const format = dto.format ?? null;
-    const address =
-      format === CourseFormat.ONSITE ? this.trimOrNull(dto.address) : null;
-    const onlineUrl =
-      format === CourseFormat.ONLINE ? this.trimOrNull(dto.onlineUrl) : null;
+    const format =
+      dto.type === CourseType.COURSE && delivery === CourseDelivery.LIVE
+        ? (dto.format ?? null)
+        : null;
 
-    // KA
+    const address =
+      delivery === CourseDelivery.LIVE && format === CourseFormat.ONSITE
+        ? this.trimOrNull(dto.address)
+        : null;
+
+    const onlineUrl =
+      delivery === CourseDelivery.LIVE && format === CourseFormat.ONLINE
+        ? this.trimOrNull(dto.onlineUrl)
+        : null;
+
     const titleKa = this.trimOrNull(dto.titleKa) ?? '';
     const descriptionKa = this.trimOrNull(dto.descriptionKa) ?? '';
 
@@ -185,7 +180,6 @@ export class CourseRequestsService {
     const mentorBioKa =
       dto.type === CourseType.COURSE ? this.trimOrNull(dto.mentorBioKa) : null;
 
-    // EN
     const titleEn = this.trimOrNull(dto.titleEn);
     const descriptionEn = this.trimOrNull(dto.descriptionEn);
     const syllabusEn = this.trimOrNull(dto.syllabusEn);
@@ -194,7 +188,6 @@ export class CourseRequestsService {
     const mentorLastNameEn = this.trimOrNull(dto.mentorLastNameEn);
     const mentorBioEn = this.trimOrNull(dto.mentorBioEn);
 
-    // ✅ NEW: teachingLanguage
     const teachingLanguage = dto.teachingLanguage ?? TeachingLanguage.KA;
 
     return this.prisma.courseRequest.create({
@@ -206,7 +199,6 @@ export class CourseRequestsService {
         format: format as any,
         delivery: delivery as any,
 
-        // ✅ NEW
         teachingLanguage,
 
         titleKa,
@@ -224,7 +216,6 @@ export class CourseRequestsService {
         mentorBioEn,
 
         enAutoTranslated: false,
-
         imageUrl: this.trimOrNull(dto.imageUrl),
 
         originalPrice: dto.originalPrice ?? null,
@@ -235,10 +226,8 @@ export class CourseRequestsService {
 
         date:
           dto.type !== CourseType.COURSE && dto.date ? new Date(dto.date) : null,
-
         address,
         onlineUrl,
-
         startDate:
           dto.type === CourseType.COURSE &&
           delivery === CourseDelivery.LIVE &&
@@ -260,7 +249,6 @@ export class CourseRequestsService {
     });
   }
 
-  // update draft (partial)
   async updateDraft(
     requestId: string,
     userId: string,
@@ -270,7 +258,6 @@ export class CourseRequestsService {
 
     this.validateEnglishGroupOnDto(dto);
 
-    // recompute pricing if originalPrice sent
     let pricing = {
       originalPrice: request.originalPrice ?? 0,
       discountedPrice: request.discountedPrice ?? null,
@@ -289,26 +276,42 @@ export class CourseRequestsService {
         ? dto.delivery ?? request.delivery ?? CourseDelivery.LIVE
         : null;
 
-    const nextFormat = (dto.format ?? request.format) as CourseFormat | null;
+    const nextFormat =
+      nextDelivery === CourseDelivery.LIVE
+        ? ((dto.format ?? request.format) as CourseFormat | null)
+        : null;
 
     const address =
-      nextFormat === CourseFormat.ONSITE
+      nextDelivery === CourseDelivery.LIVE && nextFormat === CourseFormat.ONSITE
         ? this.trimOrNull(dto.address) ?? request.address ?? null
         : null;
 
     const onlineUrl =
-      nextFormat === CourseFormat.ONLINE
+      nextDelivery === CourseDelivery.LIVE && nextFormat === CourseFormat.ONLINE
         ? this.trimOrNull(dto.onlineUrl) ?? request.onlineUrl ?? null
+        : null;
+
+    const startDate =
+      nextDelivery === CourseDelivery.LIVE
+        ? (dto.startDate ? new Date(dto.startDate) : undefined)
+        : null;
+
+    const endDate =
+      nextDelivery === CourseDelivery.LIVE
+        ? (dto.endDate ? new Date(dto.endDate) : undefined)
         : null;
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },
       data: {
         category: dto.category ?? undefined,
-        format: dto.format ?? undefined,
         delivery: (nextDelivery as any) ?? undefined,
 
-        // ✅ NEW
+        format:
+          nextDelivery === CourseDelivery.VIDEO
+            ? null
+            : dto.format ?? undefined,
+
         teachingLanguage: dto.teachingLanguage ?? undefined,
 
         titleKa: dto.titleKa ?? undefined,
@@ -318,7 +321,6 @@ export class CourseRequestsService {
         mentorLastNameKa: dto.mentorLastNameKa ?? undefined,
         mentorBioKa: dto.mentorBioKa ?? undefined,
 
-        // EN: store as-is
         titleEn:
           dto.titleEn !== undefined ? this.trimOrNull(dto.titleEn) : undefined,
         descriptionEn:
@@ -343,7 +345,6 @@ export class CourseRequestsService {
             : undefined,
 
         enAutoTranslated: false,
-
         imageUrl: dto.imageUrl ?? undefined,
 
         originalPrice: dto.originalPrice ?? undefined,
@@ -353,18 +354,22 @@ export class CourseRequestsService {
           dto.originalPrice !== undefined ? pricing.discountPercent : undefined,
 
         date: dto.date ? new Date(dto.date) : undefined,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
 
         address,
         onlineUrl,
+        startDate: startDate as any,
+        endDate: endDate as any,
       },
       include: { requestVideos: true, requestMaterials: true },
     });
   }
 
   async setListing(requestId: string, userId: string, listingDays: number) {
-    await this.getOwnedRequestOrThrow(requestId, userId);
+    const request = await this.getOwnedRequestOrThrow(requestId, userId);
+
+    if (request.type === CourseType.COURSE && request.delivery === CourseDelivery.VIDEO) {
+      throw new BadRequestException('Listing payment is not required for VIDEO courses');
+    }
 
     this.require(
       Number.isInteger(listingDays) && listingDays >= 1,
@@ -397,33 +402,50 @@ export class CourseRequestsService {
     });
   }
 
-  // ✅ USER -> pending approval, ADMIN -> auto approve + publish
-  async submitForApproval(requestId: string, userId: string, role?: Role) {
-    await this.getOwnedRequestOrThrow(requestId, userId, {
-      requestVideos: true,
-    });
+ async submitForApproval(requestId: string, userId: string, role?: Role) {
+  await this.getOwnedRequestOrThrow(requestId, userId, {
+    requestVideos: true,
+  });
 
-    const updated = await this.prisma.courseRequest.findUnique({
-      where: { id: requestId },
-      include: { requestVideos: true, requestMaterials: true },
-    });
-    if (!updated) throw new NotFoundException('Course request not found');
+  const updated = await this.prisma.courseRequest.findUnique({
+    where: { id: requestId },
+    include: { requestVideos: true, requestMaterials: true },
+  });
+  if (!updated) throw new NotFoundException('Course request not found');
 
-    this.validateEnglishGroupOnRecord(updated);
+  // console.log('SUBMIT DEBUG:', {
+  //   type: updated.type,
+  //   delivery: updated.delivery,
+  //   format: updated.format,
+  //   listingDays: updated.listingDays,
+  // });
 
-    // common required
-    this.require(!!updated.category, 'Category is required');
+  this.validateEnglishGroupOnRecord(updated);
+
+  // ✅ common required (FORMAT აქ არ ვითხოვთ)
+  this.require(!!updated.category, 'Category is required');
+  this.require(!!updated.imageUrl, 'Image is required');
+  this.require(!!updated.titleKa?.trim(), 'Title (KA) is required');
+  this.require(!!updated.descriptionKa?.trim(), 'Description (KA) is required');
+  this.require(!!updated.teachingLanguage, 'Teaching language is required');
+
+  const adminAutoPublish = this.isAdminRole(role);
+
+  // ============================
+  // WORKSHOP / MASTERCLASS
+  // ============================
+  if (updated.type !== CourseType.COURSE) {
+    this.require(!!updated.date, 'Date is required for workshop/masterclass');
+    this.require(!!updated.listingDays, 'listingDays required');
+
+    // ✅ workshop/masterclass always needs format
     this.require(!!updated.format, 'Format is required');
-    this.require(!!updated.imageUrl, 'Image is required');
-    this.require(!!updated.titleKa?.trim(), 'Title (KA) is required');
-    this.require(!!updated.descriptionKa?.trim(), 'Description (KA) is required');
 
-    // ✅ NEW: require teaching language (remove if you want it optional)
-    this.require(!!updated.teachingLanguage, 'Teaching language is required');
-
-    // format-specific
     if (updated.format === CourseFormat.ONSITE) {
-      this.require(!!updated.address?.trim(), 'Address is required for on-site');
+      this.require(
+        !!updated.address?.trim(),
+        'Address is required for on-site',
+      );
     }
     if (updated.format === CourseFormat.ONLINE) {
       this.require(
@@ -432,114 +454,123 @@ export class CourseRequestsService {
       );
     }
 
-    const adminAutoPublish = this.isAdminRole(role);
-
-    // WORKSHOP / MASTERCLASS rules
-    if (updated.type !== CourseType.COURSE) {
-      this.require(!!updated.date, 'Date is required for workshop/masterclass');
-      this.require(!!updated.listingDays, 'listingDays required');
-      // this.require(
-      //   updated.status === CourseRequestStatus.PAID,
-      //   'Payment required (pay first)',
-      // );
-
-      if (adminAutoPublish) {
-        await this.prisma.courseRequest.update({
-          where: { id: requestId },
-          data: { status: CourseRequestStatus.PENDING_APPROVAL },
-        });
-        return this.approve(requestId);
-      }
-
-      return this.prisma.courseRequest.update({
-        where: { id: requestId },
-        data: { status: CourseRequestStatus.PENDING_APPROVAL },
-      });
-    }
-
-    // COURSE rules
-    this.require(!!updated.syllabusKa?.trim(), 'Syllabus is required for course');
-    this.require(
-      !!updated.mentorFirstNameKa?.trim(),
-      'Mentor first name is required',
-    );
-    this.require(
-      !!updated.mentorLastNameKa?.trim(),
-      'Mentor last name is required',
-    );
-
-    // if English content exists on COURSE -> require syllabusEn too
-    const anyContentEn =
-      !!this.trimOrNull(updated.titleEn) ||
-      !!this.trimOrNull(updated.descriptionEn) ||
-      !!this.trimOrNull(updated.syllabusEn);
-
-    if (anyContentEn) {
-      this.require(
-        !!this.trimOrNull(updated.syllabusEn),
-        'syllabusEn is required when English is provided for course',
-      );
-    }
-
-    const delivery = updated.delivery ?? CourseDelivery.LIVE;
-
-    if (delivery === CourseDelivery.VIDEO) {
-      this.require(
-        !!updated.requestVideos?.length,
-        'At least 1 video is required for video course',
-      );
-      this.require(updated.requestVideos.length <= 25, 'Max 25 videos allowed');
-
-      if (adminAutoPublish) {
-        await this.prisma.courseRequest.update({
-          where: { id: requestId },
-          data: {
-            delivery: CourseDelivery.VIDEO,
-            status: CourseRequestStatus.PENDING_APPROVAL,
-          },
-        });
-        return this.approve(requestId);
-      }
-
-      return this.prisma.courseRequest.update({
-        where: { id: requestId },
-        data: {
-          delivery: CourseDelivery.VIDEO,
-          status: CourseRequestStatus.PENDING_APPROVAL,
-        },
-      });
-    }
-
-    // LIVE course
-    this.require(!!updated.startDate, 'Start date is required for live course');
-    this.require(
-      !!updated.listingDays,
-      'listingDays required for live course listing',
-    );
-    // this.require(
-    //   updated.status === CourseRequestStatus.PAID,
-    //   'Payment required (pay first)',
-    // );
-
     if (adminAutoPublish) {
       await this.prisma.courseRequest.update({
         where: { id: requestId },
-        data: {
-          delivery: CourseDelivery.LIVE,
-          status: CourseRequestStatus.PENDING_APPROVAL,
-        },
+        data: { status: CourseRequestStatus.PENDING_APPROVAL },
       });
       return this.approve(requestId);
     }
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },
+      data: { status: CourseRequestStatus.PENDING_APPROVAL },
+    });
+  }
+
+  // ============================
+  // COURSE common rules
+  // ============================
+  this.require(!!updated.syllabusKa?.trim(), 'Syllabus is required for course');
+  this.require(
+    !!updated.mentorFirstNameKa?.trim(),
+    'Mentor first name is required',
+  );
+  this.require(
+    !!updated.mentorLastNameKa?.trim(),
+    'Mentor last name is required',
+  );
+
+  const anyContentEn =
+    !!this.trimOrNull(updated.titleEn) ||
+    !!this.trimOrNull(updated.descriptionEn) ||
+    !!this.trimOrNull(updated.syllabusEn);
+
+  if (anyContentEn) {
+    this.require(
+      !!this.trimOrNull(updated.syllabusEn),
+      'syllabusEn is required when English is provided for course',
+    );
+  }
+
+  const delivery = updated.delivery ?? CourseDelivery.LIVE;
+
+  // ============================
+  // COURSE: VIDEO
+  // ============================
+  if (delivery === CourseDelivery.VIDEO) {
+    this.require(
+      !!updated.requestVideos?.length,
+      'At least 1 video is required for video course',
+    );
+    this.require(updated.requestVideos.length <= 25, 'Max 25 videos allowed');
+
+    // ✅ clear LIVE-only fields so format არ მოითხოვოს და არ აურიოს
+    const patchData: any = {
+      delivery: CourseDelivery.VIDEO,
+      format: null,
+      address: null,
+      onlineUrl: null,
+      startDate: null,
+      endDate: null,
+      status: CourseRequestStatus.PENDING_APPROVAL,
+    };
+
+    if (adminAutoPublish) {
+      await this.prisma.courseRequest.update({
+        where: { id: requestId },
+        data: patchData,
+      });
+      return this.approve(requestId);
+    }
+
+    return this.prisma.courseRequest.update({
+      where: { id: requestId },
+      data: patchData,
+    });
+  }
+
+  // ============================
+  // COURSE: LIVE
+  // ============================
+  this.require(!!updated.format, 'Format is required for live course');
+
+  if (updated.format === CourseFormat.ONSITE) {
+    this.require(
+      !!updated.address?.trim(),
+      'Address is required for on-site',
+    );
+  }
+  if (updated.format === CourseFormat.ONLINE) {
+    this.require(
+      !!updated.onlineUrl?.trim(),
+      'Online link is required for online',
+    );
+  }
+
+  this.require(!!updated.startDate, 'Start date is required for live course');
+  this.require(!!updated.listingDays, 'listingDays required for live course listing');
+
+  if (adminAutoPublish) {
+    await this.prisma.courseRequest.update({
+      where: { id: requestId },
       data: {
         delivery: CourseDelivery.LIVE,
         status: CourseRequestStatus.PENDING_APPROVAL,
       },
     });
+    return this.approve(requestId);
   }
+
+  return this.prisma.courseRequest.update({
+    where: { id: requestId },
+    data: {
+      delivery: CourseDelivery.LIVE,
+      status: CourseRequestStatus.PENDING_APPROVAL,
+    },
+  });
+}
+
 
   async getPendingRequests() {
     return this.prisma.courseRequest.findMany({
@@ -581,6 +612,16 @@ export class CourseRequestsService {
     return this.prisma.$transaction(async (tx) => {
       const slug = this.makeSlug(request.titleEn ?? request.titleKa);
 
+      const effectiveDelivery =
+        request.type === CourseType.COURSE
+          ? request.delivery ?? CourseDelivery.LIVE
+          : CourseDelivery.LIVE;
+
+      const effectiveFormat =
+        request.type === CourseType.COURSE && effectiveDelivery === CourseDelivery.VIDEO
+          ? CourseFormat.ONLINE
+          : (request.format as CourseFormat);
+
       const createdCourse = await tx.course.create({
         data: {
           slug,
@@ -588,21 +629,16 @@ export class CourseRequestsService {
           creatorId: request.creatorId,
 
           category: request.category!,
-          format: request.format!,
-          delivery:
-            request.type === CourseType.COURSE
-              ? request.delivery ?? CourseDelivery.LIVE
-              : CourseDelivery.LIVE,
+          format: effectiveFormat,
+          delivery: effectiveDelivery,
 
           imageUrl: request.imageUrl ?? '',
 
-          address: request.address,
-          onlineUrl: request.onlineUrl,
+          address: effectiveDelivery === CourseDelivery.LIVE ? request.address : null,
+          onlineUrl: effectiveDelivery === CourseDelivery.LIVE ? request.onlineUrl : null,
 
-          // ✅ NEW: teaching language copied to Course
           teachingLanguage: request.teachingLanguage ?? TeachingLanguage.KA,
 
-          // i18n
           titleKa: request.titleKa,
           descriptionKa: request.descriptionKa,
           syllabusKa: request.syllabusKa,
@@ -617,22 +653,20 @@ export class CourseRequestsService {
           mentorFirstNameEn: request.mentorFirstNameEn ?? null,
           mentorLastNameEn: request.mentorLastNameEn ?? null,
 
-          // dates
-          startDate: request.startDate,
-          endDate: request.endDate,
+          startDate: effectiveDelivery === CourseDelivery.LIVE ? request.startDate : null,
+          endDate: effectiveDelivery === CourseDelivery.LIVE ? request.endDate : null,
           date: request.date,
 
           listingEndsAt,
           status: CourseStatus.ACTIVE,
 
-          // pricing
           originalPrice: request.originalPrice ?? 0,
           discountedPrice: pricingFinal.discountedPrice,
           discountPercent: pricingFinal.discountPercent,
 
           videos:
             request.type === CourseType.COURSE &&
-            (request.delivery ?? CourseDelivery.LIVE) === CourseDelivery.VIDEO &&
+            effectiveDelivery === CourseDelivery.VIDEO &&
             request.requestVideos?.length
               ? { create: request.requestVideos.map((v) => ({ url: v.url })) }
               : undefined,
@@ -656,8 +690,6 @@ export class CourseRequestsService {
     });
   }
 
-// ... (წინა კოდი)
-
   async reject(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
@@ -670,7 +702,6 @@ export class CourseRequestsService {
     });
   }
 
-  // ✅ ზუსტად აქ ჩასვი, reject-ის ქვემოთ:
   async adminUpdateRequest(id: string, dto: any) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id },
@@ -698,4 +729,4 @@ export class CourseRequestsService {
       },
     });
   }
-} 
+}
