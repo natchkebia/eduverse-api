@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { CourseRequestsService } from './course-requests.service';
 import { CloudinaryService } from './cloudinary.service';
+
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
+
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
-import { SetListingDto } from './dto/set-course-request-details.dto';
+import { SetListingDto } from './dto/set-listing.dto'; // ✅ სწორი dto
 
 @Controller('course-requests')
 export class CourseRequestsController {
@@ -24,14 +26,14 @@ export class CourseRequestsController {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  // ✅ Cloudinary ხელმოწერის აღება
+  // ✅ Cloudinary ხელმოწერის აღება (ფოტო ატვირთვისთვის აუცილებელია)
   @Get('upload-signature')
   @UseGuards(JwtAuthGuard)
   getSignature() {
     return this.cloudinaryService.getUploadSignature();
   }
 
-  // ✅ ადმინის მიერ კურსის რედაქტირება
+  // ✅ ადმინის მიერ request-ის რედაქტირება
   @Patch('admin/:id/edit')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -46,7 +48,7 @@ export class CourseRequestsController {
     return this.service.createDraft(req.user.id, dto);
   }
 
-  // ✅ შესწორებული: ახლა ფრონტენდის /details რექვესთი აქ შემოვა
+  // ✅ FRONT: /details route თუ გაქვს გამოყენებაში — დავტოვოთ, რომ არ გაგიტყდეს
   @Patch(':id/details')
   @UseGuards(JwtAuthGuard)
   updateDetails(
@@ -57,7 +59,7 @@ export class CourseRequestsController {
     return this.service.updateDraft(id, req.user.id, dto);
   }
 
-  // ✅ სტანდარტული განახლება (ID-ით)
+  // ✅ სტანდარტული update
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   update(
@@ -68,7 +70,7 @@ export class CourseRequestsController {
     return this.service.updateDraft(id, req.user.id, dto);
   }
 
-  // ✅ ლისტინგის დღეების დაყენება
+  // ✅ listing days დაყენება (ეს არის შენი ახალი ლოგიკა)
   @Patch(':id/listing')
   @UseGuards(JwtAuthGuard)
   setListing(
@@ -90,10 +92,10 @@ export class CourseRequestsController {
   @Patch(':id/submit')
   @UseGuards(JwtAuthGuard)
   submit(@Req() req: any, @Param('id') id: string) {
-    return this.service.submitForApproval(id, req.user.id, req.user.role);
+    return this.service.submitForApproval(id, req.user.id, req.user?.role);
   }
 
-  // ✅ ადმინისთვის პენდინგ რექვესთების სია
+  // ✅ ადმინისთვის pending list (ძველი path დავტოვოთ)
   @Get('admin/pending')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -101,7 +103,7 @@ export class CourseRequestsController {
     return this.service.getPendingRequests();
   }
 
-  // ✅ მოთხოვნის დამტკიცება
+  // ✅ approve
   @Patch('admin/:id/approve')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -109,7 +111,7 @@ export class CourseRequestsController {
     return this.service.approve(id);
   }
 
-  // ✅ მოთხოვნის უარყოფა
+  // ✅ reject
   @Patch('admin/:id/reject')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

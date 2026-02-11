@@ -121,6 +121,7 @@ model Course {
 
   isGeorgia        Boolean        @default(true)
 
+
   // ✅ i18n texts
   titleKa          String
   descriptionKa    String
@@ -200,6 +201,9 @@ model CourseRequest {
   // ✅ Listing payment details
   listingDays      Int?
   listingFee       Int?
+  listingStartsAt DateTime?
+  listingEndsAt   DateTime?
+  
 
   // ✅ Event fields (workshop/masterclass)
   date             DateTime?

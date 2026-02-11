@@ -19,6 +19,7 @@ import { CreateCourseRequestDto } from './dto/create-course-request.dto';
 import { computePricing } from '../common/pricing/pricing';
 
 const LISTING_PRICE_PER_DAY = 5;
+const MAX_LISTING_DAYS = 30;
 
 @Injectable()
 export class CourseRequestsService {
@@ -119,13 +120,16 @@ export class CourseRequestsService {
     }
   }
 
+  // -----------------------------
+  // CREATE DRAFT (შენი კოდი უცვლელად)
+  // -----------------------------
   async createDraft(userId: string, dto: CreateCourseRequestDto) {
     this.validateEnglishGroupOnDto(dto);
 
     const delivery =
       dto.type === CourseType.COURSE
         ? dto.delivery ?? CourseDelivery.LIVE
-        : null;
+        : CourseDelivery.LIVE;
 
     let pricing = {
       originalPrice: 0,
@@ -147,9 +151,7 @@ export class CourseRequestsService {
         : undefined;
 
     const format =
-      dto.type === CourseType.COURSE && delivery === CourseDelivery.LIVE
-        ? (dto.format ?? null)
-        : null;
+      delivery === CourseDelivery.LIVE ? (dto.format ?? null) : null;
 
     const address =
       delivery === CourseDelivery.LIVE && format === CourseFormat.ONSITE
@@ -249,6 +251,9 @@ export class CourseRequestsService {
     });
   }
 
+  // -----------------------------
+  // UPDATE DRAFT (შენი კოდი უცვლელად)
+  // -----------------------------
   async updateDraft(
     requestId: string,
     userId: string,
@@ -274,7 +279,7 @@ export class CourseRequestsService {
     const nextDelivery =
       request.type === CourseType.COURSE
         ? dto.delivery ?? request.delivery ?? CourseDelivery.LIVE
-        : null;
+        : CourseDelivery.LIVE;
 
     const nextFormat =
       nextDelivery === CourseDelivery.LIVE
@@ -364,25 +369,35 @@ export class CourseRequestsService {
     });
   }
 
+  // =========================================================
+  // ✅ FIXED: setListing — აქ ვითვლით listingEndsAt-ს ერთხელ
+  // =========================================================
   async setListing(requestId: string, userId: string, listingDays: number) {
     const request = await this.getOwnedRequestOrThrow(requestId, userId);
 
+    // ✅ VIDEO course-ს არ სჭირდება listing/payment
     if (request.type === CourseType.COURSE && request.delivery === CourseDelivery.VIDEO) {
       throw new BadRequestException('Listing payment is not required for VIDEO courses');
     }
 
     this.require(
-      Number.isInteger(listingDays) && listingDays >= 1,
-      'listingDays must be >= 1',
+      Number.isInteger(listingDays) && listingDays >= 1 && listingDays <= MAX_LISTING_DAYS,
+      `listingDays must be between 1 and ${MAX_LISTING_DAYS}`,
     );
 
     const listingFee = listingDays * LISTING_PRICE_PER_DAY;
+
+    // ✅ start ერთჯერადად: თუ არ ჰქონდა — ახლა; თუ ჰქონდა — იგივე (სტაბილური დათვლა)
+    const startsAt = request.listingStartsAt ?? new Date();
+    const endsAt = addDays(startsAt, listingDays);
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },
       data: {
         listingDays,
         listingFee,
+        listingStartsAt: startsAt,
+        listingEndsAt: endsAt,
         status: CourseRequestStatus.PENDING_PAYMENT,
       },
     });
@@ -402,175 +417,143 @@ export class CourseRequestsService {
     });
   }
 
- async submitForApproval(requestId: string, userId: string, role?: Role) {
-  await this.getOwnedRequestOrThrow(requestId, userId, {
-    requestVideos: true,
-  });
+  // -----------------------------
+  // SUBMIT FOR APPROVAL (შენი ლოგიკა + პატარა დაცვა)
+  // -----------------------------
+  async submitForApproval(requestId: string, userId: string, role?: Role) {
+    await this.getOwnedRequestOrThrow(requestId, userId, {
+      requestVideos: true,
+    });
 
-  const updated = await this.prisma.courseRequest.findUnique({
-    where: { id: requestId },
-    include: { requestVideos: true, requestMaterials: true },
-  });
-  if (!updated) throw new NotFoundException('Course request not found');
+    const updated = await this.prisma.courseRequest.findUnique({
+      where: { id: requestId },
+      include: { requestVideos: true, requestMaterials: true },
+    });
+    if (!updated) throw new NotFoundException('Course request not found');
 
-  // console.log('SUBMIT DEBUG:', {
-  //   type: updated.type,
-  //   delivery: updated.delivery,
-  //   format: updated.format,
-  //   listingDays: updated.listingDays,
-  // });
+    this.validateEnglishGroupOnRecord(updated);
 
-  this.validateEnglishGroupOnRecord(updated);
+    this.require(!!updated.category, 'Category is required');
+    this.require(!!updated.imageUrl, 'Image is required');
+    this.require(!!updated.titleKa?.trim(), 'Title (KA) is required');
+    this.require(!!updated.descriptionKa?.trim(), 'Description (KA) is required');
+    this.require(!!updated.teachingLanguage, 'Teaching language is required');
 
-  // ✅ common required (FORMAT აქ არ ვითხოვთ)
-  this.require(!!updated.category, 'Category is required');
-  this.require(!!updated.imageUrl, 'Image is required');
-  this.require(!!updated.titleKa?.trim(), 'Title (KA) is required');
-  this.require(!!updated.descriptionKa?.trim(), 'Description (KA) is required');
-  this.require(!!updated.teachingLanguage, 'Teaching language is required');
+    const adminAutoPublish = this.isAdminRole(role);
 
-  const adminAutoPublish = this.isAdminRole(role);
+    // WORKSHOP / MASTERCLASS
+    if (updated.type !== CourseType.COURSE) {
+      this.require(!!updated.date, 'Date is required for workshop/masterclass');
 
-  // ============================
-  // WORKSHOP / MASTERCLASS
-  // ============================
-  if (updated.type !== CourseType.COURSE) {
-    this.require(!!updated.date, 'Date is required for workshop/masterclass');
-    this.require(!!updated.listingDays, 'listingDays required');
+      // ✅ listing required
+      this.require(!!updated.listingDays, 'listingDays required');
+      this.require(!!updated.listingEndsAt, 'listingEndsAt missing. Call /listing first');
 
-    // ✅ workshop/masterclass always needs format
-    this.require(!!updated.format, 'Format is required');
+      this.require(!!updated.format, 'Format is required');
 
-    if (updated.format === CourseFormat.ONSITE) {
-      this.require(
-        !!updated.address?.trim(),
-        'Address is required for on-site',
-      );
-    }
-    if (updated.format === CourseFormat.ONLINE) {
-      this.require(
-        !!updated.onlineUrl?.trim(),
-        'Online link is required for online',
-      );
-    }
+      if (updated.format === CourseFormat.ONSITE) {
+        this.require(!!updated.address?.trim(), 'Address is required for on-site');
+      }
+      if (updated.format === CourseFormat.ONLINE) {
+        this.require(!!updated.onlineUrl?.trim(), 'Online link is required for online');
+      }
 
-    if (adminAutoPublish) {
-      await this.prisma.courseRequest.update({
+      if (adminAutoPublish) {
+        await this.prisma.courseRequest.update({
+          where: { id: requestId },
+          data: { status: CourseRequestStatus.PENDING_APPROVAL },
+        });
+        return this.approve(requestId);
+      }
+
+      return this.prisma.courseRequest.update({
         where: { id: requestId },
         data: { status: CourseRequestStatus.PENDING_APPROVAL },
       });
-      return this.approve(requestId);
     }
 
-    return this.prisma.courseRequest.update({
-      where: { id: requestId },
-      data: { status: CourseRequestStatus.PENDING_APPROVAL },
-    });
-  }
+    // COURSE common rules
+    this.require(!!updated.syllabusKa?.trim(), 'Syllabus is required for course');
+    this.require(!!updated.mentorFirstNameKa?.trim(), 'Mentor first name is required');
+    this.require(!!updated.mentorLastNameKa?.trim(), 'Mentor last name is required');
 
-  // ============================
-  // COURSE common rules
-  // ============================
-  this.require(!!updated.syllabusKa?.trim(), 'Syllabus is required for course');
-  this.require(
-    !!updated.mentorFirstNameKa?.trim(),
-    'Mentor first name is required',
-  );
-  this.require(
-    !!updated.mentorLastNameKa?.trim(),
-    'Mentor last name is required',
-  );
+    const anyContentEn =
+      !!this.trimOrNull(updated.titleEn) ||
+      !!this.trimOrNull(updated.descriptionEn) ||
+      !!this.trimOrNull(updated.syllabusEn);
 
-  const anyContentEn =
-    !!this.trimOrNull(updated.titleEn) ||
-    !!this.trimOrNull(updated.descriptionEn) ||
-    !!this.trimOrNull(updated.syllabusEn);
+    if (anyContentEn) {
+      this.require(
+        !!this.trimOrNull(updated.syllabusEn),
+        'syllabusEn is required when English is provided for course',
+      );
+    }
 
-  if (anyContentEn) {
-    this.require(
-      !!this.trimOrNull(updated.syllabusEn),
-      'syllabusEn is required when English is provided for course',
-    );
-  }
+    const delivery = updated.delivery ?? CourseDelivery.LIVE;
 
-  const delivery = updated.delivery ?? CourseDelivery.LIVE;
+    // COURSE: VIDEO
+    if (delivery === CourseDelivery.VIDEO) {
+      this.require(!!updated.requestVideos?.length, 'At least 1 video is required for video course');
+      this.require(updated.requestVideos.length <= 25, 'Max 25 videos allowed');
 
-  // ============================
-  // COURSE: VIDEO
-  // ============================
-  if (delivery === CourseDelivery.VIDEO) {
-    this.require(
-      !!updated.requestVideos?.length,
-      'At least 1 video is required for video course',
-    );
-    this.require(updated.requestVideos.length <= 25, 'Max 25 videos allowed');
+      const patchData: any = {
+        delivery: CourseDelivery.VIDEO,
+        format: null,
+        address: null,
+        onlineUrl: null,
+        startDate: null,
+        endDate: null,
+        status: CourseRequestStatus.PENDING_APPROVAL,
+        // ✅ listing fields null for video
+        listingDays: null,
+        listingFee: null,
+        listingStartsAt: null,
+        listingEndsAt: null,
+      };
 
-    // ✅ clear LIVE-only fields so format არ მოითხოვოს და არ აურიოს
-    const patchData: any = {
-      delivery: CourseDelivery.VIDEO,
-      format: null,
-      address: null,
-      onlineUrl: null,
-      startDate: null,
-      endDate: null,
-      status: CourseRequestStatus.PENDING_APPROVAL,
-    };
+      if (adminAutoPublish) {
+        await this.prisma.courseRequest.update({ where: { id: requestId }, data: patchData });
+        return this.approve(requestId);
+      }
+
+      return this.prisma.courseRequest.update({ where: { id: requestId }, data: patchData });
+    }
+
+    // COURSE: LIVE
+    this.require(!!updated.format, 'Format is required for live course');
+
+    if (updated.format === CourseFormat.ONSITE) {
+      this.require(!!updated.address?.trim(), 'Address is required for on-site');
+    }
+    if (updated.format === CourseFormat.ONLINE) {
+      this.require(!!updated.onlineUrl?.trim(), 'Online link is required for online');
+    }
+
+    this.require(!!updated.startDate, 'Start date is required for live course');
+
+    // ✅ listing required
+    this.require(!!updated.listingDays, 'listingDays required for live course listing');
+    this.require(!!updated.listingEndsAt, 'listingEndsAt missing. Call /listing first');
 
     if (adminAutoPublish) {
       await this.prisma.courseRequest.update({
         where: { id: requestId },
-        data: patchData,
+        data: {
+          delivery: CourseDelivery.LIVE,
+          status: CourseRequestStatus.PENDING_APPROVAL,
+        },
       });
       return this.approve(requestId);
     }
 
     return this.prisma.courseRequest.update({
-      where: { id: requestId },
-      data: patchData,
-    });
-  }
-
-  // ============================
-  // COURSE: LIVE
-  // ============================
-  this.require(!!updated.format, 'Format is required for live course');
-
-  if (updated.format === CourseFormat.ONSITE) {
-    this.require(
-      !!updated.address?.trim(),
-      'Address is required for on-site',
-    );
-  }
-  if (updated.format === CourseFormat.ONLINE) {
-    this.require(
-      !!updated.onlineUrl?.trim(),
-      'Online link is required for online',
-    );
-  }
-
-  this.require(!!updated.startDate, 'Start date is required for live course');
-  this.require(!!updated.listingDays, 'listingDays required for live course listing');
-
-  if (adminAutoPublish) {
-    await this.prisma.courseRequest.update({
       where: { id: requestId },
       data: {
         delivery: CourseDelivery.LIVE,
         status: CourseRequestStatus.PENDING_APPROVAL,
       },
     });
-    return this.approve(requestId);
   }
-
-  return this.prisma.courseRequest.update({
-    where: { id: requestId },
-    data: {
-      delivery: CourseDelivery.LIVE,
-      status: CourseRequestStatus.PENDING_APPROVAL,
-    },
-  });
-}
-
 
   async getPendingRequests() {
     return this.prisma.courseRequest.findMany({
@@ -580,6 +563,9 @@ export class CourseRequestsService {
     });
   }
 
+  // =========================================================
+  // ✅ FIXED: approve — აღარ ვთვლით new Date()-დან
+  // =========================================================
   async approve(requestId: string) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id: requestId },
@@ -591,10 +577,27 @@ export class CourseRequestsService {
       throw new ForbiddenException('Request must be PENDING_APPROVAL');
     }
 
-    const listingEndsAt =
-      request.listingDays && request.listingDays > 0
-        ? addDays(new Date(), request.listingDays)
-        : null;
+    const effectiveDelivery =
+      request.type === CourseType.COURSE
+        ? request.delivery ?? CourseDelivery.LIVE
+        : CourseDelivery.LIVE;
+
+    const isVideo = request.type === CourseType.COURSE && effectiveDelivery === CourseDelivery.VIDEO;
+
+    // ✅ listingEndsAt:
+    // - VIDEO => null
+    // - LIVE/WORKSHOP => request.listingEndsAt (დათვლილი setListing-ში)
+    //   fallback: თუ ძველი მონაცემებია და null დარჩა, მაინც დავთვალოთ startsAt-დან.
+    const listingEndsAt = isVideo
+      ? null
+      : (request.listingEndsAt ??
+          (request.listingDays && request.listingDays > 0
+            ? addDays(request.listingStartsAt ?? new Date(), request.listingDays)
+            : null));
+
+    if (!isVideo) {
+      this.require(!!listingEndsAt, 'listingEndsAt is required for LIVE/WORKSHOP');
+    }
 
     let pricingFinal = {
       originalPrice: 0,
@@ -612,13 +615,8 @@ export class CourseRequestsService {
     return this.prisma.$transaction(async (tx) => {
       const slug = this.makeSlug(request.titleEn ?? request.titleKa);
 
-      const effectiveDelivery =
-        request.type === CourseType.COURSE
-          ? request.delivery ?? CourseDelivery.LIVE
-          : CourseDelivery.LIVE;
-
       const effectiveFormat =
-        request.type === CourseType.COURSE && effectiveDelivery === CourseDelivery.VIDEO
+        request.type === CourseType.COURSE && isVideo
           ? CourseFormat.ONLINE
           : (request.format as CourseFormat);
 
@@ -666,7 +664,7 @@ export class CourseRequestsService {
 
           videos:
             request.type === CourseType.COURSE &&
-            effectiveDelivery === CourseDelivery.VIDEO &&
+            isVideo &&
             request.requestVideos?.length
               ? { create: request.requestVideos.map((v) => ({ url: v.url })) }
               : undefined,

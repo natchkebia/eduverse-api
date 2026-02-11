@@ -124,6 +124,6 @@ export class CreateCourseDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(365)
+  @Max(30)
   listingDays?: number;
 }
