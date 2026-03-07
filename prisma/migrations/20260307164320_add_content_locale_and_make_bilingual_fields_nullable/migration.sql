@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Course" ALTER COLUMN "titleKa" DROP NOT NULL,
+ALTER COLUMN "descriptionKa" DROP NOT NULL;

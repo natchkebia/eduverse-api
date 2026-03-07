@@ -34,32 +34,93 @@ export class CoursesService {
   }
 
   async searchCourses(query: string, locale: string = 'ka') {
-    const isEn = locale === 'en';
-    return this.prisma.course.findMany({
-      where: {
-        ...(isEn ? { titleEn: { not: null } } : {}),
-        OR: isEn
-          ? [
-              { titleEn: { contains: query, mode: 'insensitive' } },
-              { descriptionEn: { contains: query, mode: 'insensitive' } },
-            ]
-          : [
-              { titleKa: { contains: query, mode: 'insensitive' } },
-              { descriptionKa: { contains: query, mode: 'insensitive' } },
+  const isEn = locale === 'en';
+
+  return this.prisma.course.findMany({
+    where: {
+      ...(isEn
+        ? {
+            OR: [
+              { contentLocale: 'en' },
+              {
+                AND: [
+                  { titleKa: { not: null } },
+                  { descriptionKa: { not: null } },
+                  { titleEn: { not: null } },
+                  { descriptionEn: { not: null } },
+                ],
+              },
             ],
-      },
-      orderBy: { createdAt: 'desc' },
-      include: { videos: true, materials: true },
-    });
-  }
+          }
+        : {
+            OR: [
+              { contentLocale: 'ka' },
+              {
+                AND: [
+                  { titleKa: { not: null } },
+                  { descriptionKa: { not: null } },
+                  { titleEn: { not: null } },
+                  { descriptionEn: { not: null } },
+                ],
+              },
+            ],
+          }),
+
+      AND: [
+        isEn
+          ? {
+              OR: [
+                { titleEn: { contains: query, mode: 'insensitive' } },
+                { descriptionEn: { contains: query, mode: 'insensitive' } },
+              ],
+            }
+          : {
+              OR: [
+                { titleKa: { contains: query, mode: 'insensitive' } },
+                { descriptionKa: { contains: query, mode: 'insensitive' } },
+              ],
+            },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    include: { videos: true, materials: true },
+  });
+}
 
   async getPublicCourses(type?: CourseType, locale: string = 'ka') {
     const isEn = locale === 'en';
+
     return this.prisma.course.findMany({
       where: {
         status: { in: [CourseStatus.ACTIVE, CourseStatus.EXPIRING] },
         ...(type ? { type } : {}),
-        ...(isEn ? { titleEn: { not: null } } : {}),
+        ...(isEn
+          ? {
+              OR: [
+                { contentLocale: 'en' },
+                {
+                  AND: [
+                    { titleKa: { not: null } },
+                    { descriptionKa: { not: null } },
+                    { titleEn: { not: null } },
+                    { descriptionEn: { not: null } },
+                  ],
+                },
+              ],
+            }
+          : {
+              OR: [
+                { contentLocale: 'ka' },
+                {
+                  AND: [
+                    { titleKa: { not: null } },
+                    { descriptionKa: { not: null } },
+                    { titleEn: { not: null } },
+                    { descriptionEn: { not: null } },
+                  ],
+                },
+              ],
+            }),
       },
       orderBy: { createdAt: 'desc' },
       include: { videos: true, materials: true },
@@ -161,8 +222,9 @@ export class CoursesService {
         delivery,
         imageUrl: dto.imageUrl,
         isGeorgia: dto.isGeorgia ?? true,
-        address: format === CourseFormat.ONSITE ? dto.address ?? null : null,
-        onlineUrl: format === CourseFormat.ONLINE ? dto.onlineUrl ?? null : null,
+        address: format === CourseFormat.ONSITE ? (dto.address ?? null) : null,
+        onlineUrl:
+          format === CourseFormat.ONLINE ? (dto.onlineUrl ?? null) : null,
         titleKa: dto.titleKa,
         descriptionKa: dto.descriptionKa,
         syllabusKa: dto.syllabusKa ?? null,

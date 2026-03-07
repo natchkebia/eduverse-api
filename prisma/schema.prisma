@@ -102,6 +102,7 @@ model Course {
   type             CourseType     @default(COURSE)
   teachingLanguage TeachingLanguage @default(KA)
 
+contentLocale   String?
   category         CourseCategory @default(OTHER)
   delivery         CourseDelivery @default(LIVE)
   format           CourseFormat   @default(ONLINE)
@@ -123,8 +124,8 @@ model Course {
 
 
   // ✅ i18n texts
-  titleKa          String
-  descriptionKa    String
+  titleKa          String?
+  descriptionKa    String?
   syllabusKa       String?
   mentorBioKa      String?
   mentorFirstNameKa String?
@@ -163,7 +164,7 @@ model Course {
 
 model CourseRequest {
   id               String              @id @default(uuid())
-
+contentLocale String?
   creatorId        String
   creator          User                @relation(fields: [creatorId], references: [id], onDelete: Restrict)
 
@@ -175,8 +176,8 @@ model CourseRequest {
   format           CourseFormat?
 
   // ✅ i18n texts (KA required; EN auto-generated on submit)
-  titleKa          String
-  descriptionKa    String
+  titleKa          String?
+  descriptionKa    String?
   syllabusKa       String?
   mentorBioKa      String?
   mentorFirstNameKa String?

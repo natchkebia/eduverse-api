@@ -7,6 +7,8 @@ import {
   IsArray,
   ArrayMaxSize,
   IsUrl,
+  ValidateIf,
+  IsIn,
 } from 'class-validator';
 import {
   CourseType,
@@ -17,6 +19,9 @@ import {
 } from '@prisma/client';
 
 export class CreateCourseRequestDto {
+  @IsIn(['ka', 'en'])
+  contentLocale: 'ka' | 'en';
+
   @IsEnum(CourseType)
   type: CourseType;
 
@@ -36,9 +41,11 @@ export class CreateCourseRequestDto {
   @IsEnum(TeachingLanguage)
   teachingLanguage?: TeachingLanguage;
 
+  @ValidateIf((o) => o.contentLocale === 'ka')
   @IsString()
   titleKa: string;
 
+  @ValidateIf((o) => o.contentLocale === 'ka')
   @IsString()
   descriptionKa: string;
 
@@ -58,13 +65,13 @@ export class CreateCourseRequestDto {
   @IsString()
   mentorBioKa?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.contentLocale === 'en')
   @IsString()
-  titleEn?: string;
+  titleEn: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.contentLocale === 'en')
   @IsString()
-  descriptionEn?: string;
+  descriptionEn: string;
 
   @IsOptional()
   @IsString()
@@ -98,15 +105,15 @@ export class CreateCourseRequestDto {
 
   @IsOptional()
   @IsString()
-  date?: string; // ISO
+  date?: string;
 
   @IsOptional()
   @IsString()
-  startDate?: string; // ISO
+  startDate?: string;
 
   @IsOptional()
   @IsString()
-  endDate?: string; // ISO
+  endDate?: string;
 
   @IsOptional()
   @IsString()
