@@ -9,6 +9,7 @@ import {
   UseGuards,
   Query,
   Req,
+  Delete,
 } from '@nestjs/common';
 
 import { CoursesService } from './courses.service';
@@ -85,6 +86,16 @@ export class CoursesController {
   @Roles(Role.ADMIN)
   async adminEditCourse(@Param('id') id: string, @Body() dto: any) {
     return this.coursesService.updateCourse(Number(id), dto);
+  }
+
+  /**
+   * 🔐 ADMIN: კურსის წაშლა
+   */
+  @Delete('admin/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async deleteCourse(@Param('id') id: string) {
+    return this.coursesService.deleteCourse(Number(id));
   }
 
   /**

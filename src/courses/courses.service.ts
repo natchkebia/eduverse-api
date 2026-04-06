@@ -34,58 +34,58 @@ export class CoursesService {
   }
 
   async searchCourses(query: string, locale: string = 'ka') {
-  const isEn = locale === 'en';
+    const isEn = locale === 'en';
 
-  return this.prisma.course.findMany({
-    where: {
-      ...(isEn
-        ? {
-            OR: [
-              { contentLocale: 'en' },
-              {
-                AND: [
-                  { titleKa: { not: null } },
-                  { descriptionKa: { not: null } },
-                  { titleEn: { not: null } },
-                  { descriptionEn: { not: null } },
-                ],
-              },
-            ],
-          }
-        : {
-            OR: [
-              { contentLocale: 'ka' },
-              {
-                AND: [
-                  { titleKa: { not: null } },
-                  { descriptionKa: { not: null } },
-                  { titleEn: { not: null } },
-                  { descriptionEn: { not: null } },
-                ],
-              },
-            ],
-          }),
-
-      AND: [
-        isEn
+    return this.prisma.course.findMany({
+      where: {
+        ...(isEn
           ? {
               OR: [
-                { titleEn: { contains: query, mode: 'insensitive' } },
-                { descriptionEn: { contains: query, mode: 'insensitive' } },
+                { contentLocale: 'en' },
+                {
+                  AND: [
+                    { titleKa: { not: null } },
+                    { descriptionKa: { not: null } },
+                    { titleEn: { not: null } },
+                    { descriptionEn: { not: null } },
+                  ],
+                },
               ],
             }
           : {
               OR: [
-                { titleKa: { contains: query, mode: 'insensitive' } },
-                { descriptionKa: { contains: query, mode: 'insensitive' } },
+                { contentLocale: 'ka' },
+                {
+                  AND: [
+                    { titleKa: { not: null } },
+                    { descriptionKa: { not: null } },
+                    { titleEn: { not: null } },
+                    { descriptionEn: { not: null } },
+                  ],
+                },
               ],
-            },
-      ],
-    },
-    orderBy: { createdAt: 'desc' },
-    include: { videos: true, materials: true },
-  });
-}
+            }),
+
+        AND: [
+          isEn
+            ? {
+                OR: [
+                  { titleEn: { contains: query, mode: 'insensitive' } },
+                  { descriptionEn: { contains: query, mode: 'insensitive' } },
+                ],
+              }
+            : {
+                OR: [
+                  { titleKa: { contains: query, mode: 'insensitive' } },
+                  { descriptionKa: { contains: query, mode: 'insensitive' } },
+                ],
+              },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { videos: true, materials: true },
+    });
+  }
 
   async getPublicCourses(type?: CourseType, locale: string = 'ka') {
     const isEn = locale === 'en';
@@ -191,6 +191,32 @@ export class CoursesService {
     });
   }
 
+  /**
+   * 🗑️ ADMIN DELETE COURSE
+   */
+  async deleteCourse(id: number) {
+    const course = await this.prisma.course.findUnique({
+      where: { id },
+      include: { videos: true, materials: true },
+    });
+
+    if (!course) {
+      throw new NotFoundException(`Course with ID ${id} not found`);
+    }
+
+    await this.prisma.video.deleteMany({
+      where: { courseId: id },
+    });
+
+    await this.prisma.material.deleteMany({
+      where: { courseId: id },
+    });
+
+    return this.prisma.course.delete({
+      where: { id },
+    });
+  }
+
   async updateCourseImage(id: number, imageUrl: string | null) {
     return this.prisma.course.update({
       where: { id },
@@ -253,6 +279,7 @@ export class CoursesService {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException('Course not found');
     const base = course.listingEndsAt ?? new Date();
+
     return this.prisma.course.update({
       where: { id },
       data: {
