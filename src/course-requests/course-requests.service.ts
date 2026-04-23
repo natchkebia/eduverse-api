@@ -16,6 +16,7 @@ import {
 } from '@prisma/client';
 import { addDays } from 'date-fns';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
+import { AdminUpdateRequestDto } from './dto/admin-update-request.dto';
 import { computePricing } from '../common/pricing/pricing';
 
 const LISTING_PRICE_PER_DAY = 5;
@@ -808,13 +809,18 @@ export class CourseRequestsService {
     });
   }
 
-  async adminUpdateRequest(id: string, dto: any) {
+  async adminUpdateRequest(id: string, dto: AdminUpdateRequestDto) {
     const request = await this.prisma.courseRequest.findUnique({
       where: { id },
     });
     if (!request) throw new NotFoundException('Course request not found');
 
-    let pricingData = {};
+    let pricingData: {
+      originalPrice?: number;
+      discountedPrice?: number | null;
+      discountPercent?: number | null;
+    } = {};
+
     if (dto.originalPrice !== undefined) {
       const p = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
       pricingData = {
@@ -824,14 +830,36 @@ export class CourseRequestsService {
       };
     }
 
+    // Explicit field mapping — no raw dto spread to prevent field-injection
     return this.prisma.courseRequest.update({
       where: { id },
       data: {
-        ...dto,
+        ...(dto.contentLocale !== undefined && { contentLocale: dto.contentLocale }),
+        ...(dto.type !== undefined && { type: dto.type }),
+        ...(dto.category !== undefined && { category: dto.category }),
+        ...(dto.delivery !== undefined && { delivery: dto.delivery }),
+        ...(dto.format !== undefined && { format: dto.format }),
+        ...(dto.teachingLanguage !== undefined && { teachingLanguage: dto.teachingLanguage }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.titleKa !== undefined && { titleKa: dto.titleKa }),
+        ...(dto.descriptionKa !== undefined && { descriptionKa: dto.descriptionKa }),
+        ...(dto.syllabusKa !== undefined && { syllabusKa: dto.syllabusKa }),
+        ...(dto.mentorFirstNameKa !== undefined && { mentorFirstNameKa: dto.mentorFirstNameKa }),
+        ...(dto.mentorLastNameKa !== undefined && { mentorLastNameKa: dto.mentorLastNameKa }),
+        ...(dto.mentorBioKa !== undefined && { mentorBioKa: dto.mentorBioKa }),
+        ...(dto.titleEn !== undefined && { titleEn: dto.titleEn }),
+        ...(dto.descriptionEn !== undefined && { descriptionEn: dto.descriptionEn }),
+        ...(dto.syllabusEn !== undefined && { syllabusEn: dto.syllabusEn }),
+        ...(dto.mentorFirstNameEn !== undefined && { mentorFirstNameEn: dto.mentorFirstNameEn }),
+        ...(dto.mentorLastNameEn !== undefined && { mentorLastNameEn: dto.mentorLastNameEn }),
+        ...(dto.mentorBioEn !== undefined && { mentorBioEn: dto.mentorBioEn }),
+        ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+        ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.onlineUrl !== undefined && { onlineUrl: dto.onlineUrl }),
+        ...(dto.date && { date: new Date(dto.date) }),
+        ...(dto.startDate && { startDate: new Date(dto.startDate) }),
+        ...(dto.endDate && { endDate: new Date(dto.endDate) }),
         ...pricingData,
-        date: dto.date ? new Date(dto.date) : undefined,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       },
     });
   }

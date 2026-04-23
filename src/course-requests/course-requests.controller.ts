@@ -17,7 +17,8 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
-import { SetListingDto } from './dto/set-listing.dto'; // ✅ სწორი dto
+import { AdminUpdateRequestDto } from './dto/admin-update-request.dto';
+import { SetListingDto } from './dto/set-listing.dto';
 
 @Controller('course-requests')
 export class CourseRequestsController {
@@ -33,11 +34,10 @@ export class CourseRequestsController {
     return this.cloudinaryService.getUploadSignature();
   }
 
-  // ✅ ადმინის მიერ request-ის რედაქტირება
   @Patch('admin/:id/edit')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  adminEdit(@Param('id') id: string, @Body() dto: any) {
+  adminEdit(@Param('id') id: string, @Body() dto: AdminUpdateRequestDto) {
     return this.service.adminUpdateRequest(id, dto);
   }
 

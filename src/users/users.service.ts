@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -38,6 +43,10 @@ export class UsersService {
     return user;
   }
 
+  async findById(userId: string) {
+    return this.prisma.user.findUnique({ where: { id: userId } });
+  }
+
   async updatePassword(userId: string, hashedPassword: string) {
     return this.prisma.user.update({
       where: { id: userId },
@@ -45,7 +54,32 @@ export class UsersService {
     });
   }
 
-  async findById(userId: string) {
-    return this.prisma.user.findUnique({ where: { id: userId } });
+  /**
+   * Validates current password and updates to new password.
+   * Business logic lives here — not in the controller.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('მომხმარებელი ვერ მოიძებნა');
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'ამ ანგარიშს პაროლი არ აქვს — გამოიყენეთ OAuth შესვლა',
+      );
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('ამჟამინდელი პაროლი არასწორია');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await this.updatePassword(userId, hashed);
+
+    return { message: 'პაროლი წარმატებით შეიცვალა ✅' };
   }
 }

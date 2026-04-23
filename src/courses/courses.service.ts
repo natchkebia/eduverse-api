@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { UpdateCourseDto } from './dto/update-course.dto';
 import { addDays, addHours } from 'date-fns';
 import {
   CourseStatus,
@@ -17,11 +18,9 @@ import { computePricing } from '../common/pricing/pricing';
 
 @Injectable()
 export class CoursesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * ✅ USER: get my created courses
-   */
+  // ─── USER: get my created courses ──────────────────────────────────────────
   async getMyCourses(userId: string, status?: CourseStatus) {
     return this.prisma.course.findMany({
       where: {
@@ -33,6 +32,7 @@ export class CoursesService {
     });
   }
 
+  // ─── Search ─────────────────────────────────────────────────────────────────
   async searchCourses(query: string, locale: string = 'ka') {
     const isEn = locale === 'en';
 
@@ -87,6 +87,7 @@ export class CoursesService {
     });
   }
 
+  // ─── Public courses ─────────────────────────────────────────────────────────
   async getPublicCourses(type?: CourseType, locale: string = 'ka') {
     const isEn = locale === 'en';
 
@@ -162,14 +163,17 @@ export class CoursesService {
     });
   }
 
-  /**
-   * ✅ ADMIN UPDATE
-   */
-  async updateCourse(id: number, dto: any) {
+  // ─── ADMIN: update course (explicit field mapping — no raw spread) ───────────
+  async updateCourse(id: number, dto: UpdateCourseDto) {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException('Course not found');
 
-    let pricingData = {};
+    let pricingData: {
+      originalPrice?: number;
+      discountedPrice?: number | null;
+      discountPercent?: number | null;
+    } = {};
+
     if (dto.originalPrice !== undefined) {
       const p = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
       pricingData = {
@@ -182,18 +186,40 @@ export class CoursesService {
     return this.prisma.course.update({
       where: { id },
       data: {
-        ...dto,
+        // Only explicitly allowed fields — no raw spread
+        ...(dto.type !== undefined && { type: dto.type }),
+        ...(dto.category !== undefined && { category: dto.category }),
+        ...(dto.delivery !== undefined && { delivery: dto.delivery }),
+        ...(dto.format !== undefined && { format: dto.format }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.isGeorgia !== undefined && { isGeorgia: dto.isGeorgia }),
+        ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.onlineUrl !== undefined && { onlineUrl: dto.onlineUrl }),
+        ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+        ...(dto.titleKa !== undefined && { titleKa: dto.titleKa }),
+        ...(dto.descriptionKa !== undefined && { descriptionKa: dto.descriptionKa }),
+        ...(dto.syllabusKa !== undefined && { syllabusKa: dto.syllabusKa }),
+        ...(dto.mentorFirstNameKa !== undefined && { mentorFirstNameKa: dto.mentorFirstNameKa }),
+        ...(dto.mentorLastNameKa !== undefined && { mentorLastNameKa: dto.mentorLastNameKa }),
+        ...(dto.mentorBioKa !== undefined && { mentorBioKa: dto.mentorBioKa }),
+        ...(dto.titleEn !== undefined && { titleEn: dto.titleEn }),
+        ...(dto.descriptionEn !== undefined && { descriptionEn: dto.descriptionEn }),
+        ...(dto.syllabusEn !== undefined && { syllabusEn: dto.syllabusEn }),
+        ...(dto.mentorFirstNameEn !== undefined && { mentorFirstNameEn: dto.mentorFirstNameEn }),
+        ...(dto.mentorLastNameEn !== undefined && { mentorLastNameEn: dto.mentorLastNameEn }),
+        ...(dto.mentorBioEn !== undefined && { mentorBioEn: dto.mentorBioEn }),
+        ...(dto.startDate && { startDate: new Date(dto.startDate) }),
+        ...(dto.endDate && { endDate: new Date(dto.endDate) }),
+        ...(dto.date && { date: new Date(dto.date) }),
+        ...(dto.listingDays && {
+          listingEndsAt: addDays(course.listingEndsAt ?? new Date(), dto.listingDays),
+        }),
         ...pricingData,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-        date: dto.date ? new Date(dto.date) : undefined,
       },
     });
   }
 
-  /**
-   * 🗑️ ADMIN DELETE COURSE
-   */
+  // ─── ADMIN: delete course ────────────────────────────────────────────────────
   async deleteCourse(id: number) {
     const course = await this.prisma.course.findUnique({
       where: { id },
@@ -204,17 +230,10 @@ export class CoursesService {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
 
-    await this.prisma.video.deleteMany({
-      where: { courseId: id },
-    });
-
-    await this.prisma.material.deleteMany({
-      where: { courseId: id },
-    });
-
-    return this.prisma.course.delete({
-      where: { id },
-    });
+    // Videos and materials cascade on delete via schema — explicit deletes for safety
+    await this.prisma.video.deleteMany({ where: { courseId: id } });
+    await this.prisma.material.deleteMany({ where: { courseId: id } });
+    return this.prisma.course.delete({ where: { id } });
   }
 
   async updateCourseImage(id: number, imageUrl: string | null) {
@@ -224,8 +243,9 @@ export class CoursesService {
     });
   }
 
+  // ─── ADMIN: create course ────────────────────────────────────────────────────
   async createCourse(dto: CreateCourseDto) {
-    let pricing: any;
+    let pricing: ReturnType<typeof computePricing>;
     try {
       pricing = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
     } catch (e: any) {
@@ -249,8 +269,7 @@ export class CoursesService {
         imageUrl: dto.imageUrl,
         isGeorgia: dto.isGeorgia ?? true,
         address: format === CourseFormat.ONSITE ? (dto.address ?? null) : null,
-        onlineUrl:
-          format === CourseFormat.ONLINE ? (dto.onlineUrl ?? null) : null,
+        onlineUrl: format === CourseFormat.ONLINE ? (dto.onlineUrl ?? null) : null,
         titleKa: dto.titleKa,
         descriptionKa: dto.descriptionKa,
         syllabusKa: dto.syllabusKa ?? null,
@@ -275,6 +294,7 @@ export class CoursesService {
     });
   }
 
+  // ─── ADMIN: extend course listing ────────────────────────────────────────────
   async extendCourse(id: number, duration: number) {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException('Course not found');
@@ -289,6 +309,7 @@ export class CoursesService {
     });
   }
 
+  // ─── Cron: auto-update course statuses ───────────────────────────────────────
   @Cron(CronExpression.EVERY_10_MINUTES)
   async updateCourseStatuses() {
     const now = new Date();
@@ -297,10 +318,7 @@ export class CoursesService {
     await this.prisma.course.updateMany({
       where: {
         status: CourseStatus.ACTIVE,
-        listingEndsAt: {
-          lte: in24Hours,
-          gt: now,
-        },
+        listingEndsAt: { lte: in24Hours, gt: now },
       },
       data: { status: CourseStatus.EXPIRING },
     });
@@ -308,9 +326,7 @@ export class CoursesService {
     await this.prisma.course.updateMany({
       where: {
         status: CourseStatus.EXPIRING,
-        listingEndsAt: {
-          lte: now,
-        },
+        listingEndsAt: { lte: now },
       },
       data: { status: CourseStatus.EXPIRED },
     });

@@ -1,7 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+
 interface JwtPayload {
   userId: string;
   email: string;
@@ -9,30 +11,34 @@ interface JwtPayload {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'secret-key',
+      secretOrKey: secret,
     });
   }
 
   async validate(payload: JwtPayload) {
-    const userId = payload.userId;
-
-    if (!userId) {
-      throw new UnauthorizedException(
-        'JWT Payload is missing user identifier (userId).',
-      );
+    if (!payload?.userId) {
+      throw new UnauthorizedException('Invalid token payload.');
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: payload.userId },
       select: { id: true, email: true, role: true, name: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials or user not found.');
+      throw new UnauthorizedException('User not found or token revoked.');
     }
 
     return user;
