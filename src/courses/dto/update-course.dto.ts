@@ -132,4 +132,9 @@ export class UpdateCourseDto {
   @Min(1)
   @Max(30)
   listingDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxStudents?: number;
 }

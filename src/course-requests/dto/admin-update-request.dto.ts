@@ -130,4 +130,9 @@ export class AdminUpdateRequestDto {
   @IsOptional()
   @IsUrl()
   onlineUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxStudents?: number;
 }

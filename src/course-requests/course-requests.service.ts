@@ -248,6 +248,7 @@ export class CourseRequestsService {
           dto.endDate
             ? new Date(dto.endDate)
             : null,
+        maxStudents: dto.maxStudents ?? null,
 
         requestVideos: requestVideosCreate,
 
@@ -387,6 +388,7 @@ export class CourseRequestsService {
         onlineUrl,
         startDate: startDate as any,
         endDate: endDate as any,
+        maxStudents: dto.maxStudents ?? undefined,
       },
       include: { requestVideos: true, requestMaterials: true },
     });
@@ -479,6 +481,12 @@ export class CourseRequestsService {
     const adminAutoPublish = this.isAdminRole(role);
 
     if (updated.type !== CourseType.COURSE) {
+      if (updated.type === CourseType.WORKSHOP) {
+        this.require(
+          !!updated.maxStudents && updated.maxStudents > 0,
+          'maxStudents is required for workshop',
+        );
+      }
       this.require(!!updated.date, 'Date is required for workshop/masterclass');
       this.require(!!updated.listingDays, 'listingDays required');
       this.require(
@@ -516,6 +524,11 @@ export class CourseRequestsService {
     }
 
     // COURSE common rules
+    this.require(
+      !!updated.maxStudents && updated.maxStudents > 0,
+      'maxStudents is required for course',
+    );
+
     if (updated.contentLocale === 'ka') {
       this.require(
         !!updated.syllabusKa?.trim(),
@@ -766,6 +779,7 @@ export class CourseRequestsService {
           date: request.date,
 
           listingEndsAt,
+          maxStudents: request.maxStudents ?? null,
           status: CourseStatus.ACTIVE,
 
           originalPrice: request.originalPrice ?? 0,
@@ -856,6 +870,7 @@ export class CourseRequestsService {
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
         ...(dto.address !== undefined && { address: dto.address }),
         ...(dto.onlineUrl !== undefined && { onlineUrl: dto.onlineUrl }),
+        ...(dto.maxStudents !== undefined && { maxStudents: dto.maxStudents }),
         ...(dto.date && { date: new Date(dto.date) }),
         ...(dto.startDate && { startDate: new Date(dto.startDate) }),
         ...(dto.endDate && { endDate: new Date(dto.endDate) }),

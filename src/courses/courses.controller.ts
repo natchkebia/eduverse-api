@@ -134,6 +134,12 @@ export class CoursesController {
     return this.coursesService.extendCourse(Number(id), body.duration);
   }
 
+  @Post(':id/enroll')
+  @UseGuards(JwtAuthGuard)
+  async enrollInCourse(@Param('id') id: string, @Req() req: any) {
+    return this.coursesService.enrollInCourse(Number(id), req.user.id);
+  }
+
   // ─── Single course lookup ────────────────────────────────────────────────────
 
   @Get('id/:id')

@@ -128,4 +128,9 @@ export class CreateCourseRequestDto {
   @ArrayMaxSize(25)
   @IsUrl({}, { each: true })
   videoUrls?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxStudents?: number;
 }

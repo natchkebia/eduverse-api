@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -214,6 +215,7 @@ export class CoursesService {
         ...(dto.listingDays && {
           listingEndsAt: addDays(course.listingEndsAt ?? new Date(), dto.listingDays),
         }),
+        ...(dto.maxStudents !== undefined && { maxStudents: dto.maxStudents }),
         ...pricingData,
       },
     });
@@ -253,6 +255,14 @@ export class CoursesService {
     }
 
     const type = dto.type ?? CourseType.COURSE;
+    if (
+      (type === CourseType.COURSE || type === CourseType.WORKSHOP) &&
+      !dto.maxStudents
+    ) {
+      throw new BadRequestException(
+        'maxStudents is required for courses and workshops',
+      );
+    }
     const format = dto.format ?? CourseFormat.ONLINE;
     const delivery = dto.delivery ?? CourseDelivery.LIVE;
     const listingEndsAt = dto.listingDays
@@ -286,6 +296,7 @@ export class CoursesService {
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         date: dto.date ? new Date(dto.date) : null,
         listingEndsAt,
+        maxStudents: dto.maxStudents ?? null,
         status: CourseStatus.ACTIVE,
         originalPrice: pricing.originalPrice,
         discountedPrice: pricing.discountedPrice,
@@ -329,6 +340,48 @@ export class CoursesService {
         listingEndsAt: { lte: now },
       },
       data: { status: CourseStatus.EXPIRED },
+    });
+  }
+
+  async enrollInCourse(courseId: number, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const course = await tx.course.findUnique({
+        where: { id: courseId },
+        select: { id: true, type: true, maxStudents: true },
+      });
+
+      if (!course) {
+        throw new NotFoundException('Course not found');
+      }
+
+      const shouldEnforceCapacity =
+        (course.type === CourseType.COURSE || course.type === CourseType.WORKSHOP) &&
+        course.maxStudents !== null;
+
+      if (shouldEnforceCapacity) {
+        const currentEnrollments = await tx.courseEnrollment.count({
+          where: { courseId },
+        });
+
+        if (currentEnrollments >= (course.maxStudents as number)) {
+          throw new BadRequestException(
+            'Registration limit reached for this course',
+          );
+        }
+      }
+
+      try {
+        await tx.courseEnrollment.create({
+          data: { courseId, userId },
+        });
+      } catch (error: any) {
+        if (error?.code === 'P2002') {
+          throw new ConflictException('You are already registered');
+        }
+        throw error;
+      }
+
+      return { success: true };
     });
   }
 }

@@ -95,6 +95,7 @@ model User {
 
   courseRequests      CourseRequest[]
   courses             Course[]
+  enrollments         CourseEnrollment[]
 }
 
 model Course {
@@ -145,11 +146,13 @@ contentLocale   String?
   date             DateTime? // workshop/masterclass date
 
   listingEndsAt    DateTime?
+  maxStudents      Int?
 
   status           CourseStatus   @default(ACTIVE)
 
   videos           Video[]
   materials        Material[]
+  enrollments      CourseEnrollment[]
 
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -161,6 +164,20 @@ contentLocale   String?
   @@index([format])
   @@index([delivery])
   @@index([isGeorgia])
+}
+
+model CourseEnrollment {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  courseId  Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([userId])
 }
 
 model CourseRequest {
@@ -205,6 +222,7 @@ contentLocale String?
   listingFee       Int?
   listingStartsAt DateTime?
   listingEndsAt   DateTime?
+  maxStudents     Int?
   
 
   // ✅ Event fields (workshop/masterclass)
