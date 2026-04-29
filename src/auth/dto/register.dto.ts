@@ -1,4 +1,12 @@
-import { IsEmail, IsOptional, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Valid email is required' })
@@ -25,4 +33,7 @@ export class RegisterDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
+
+  @IsDateString({}, { message: 'dateOfBirth must be a valid date string' })
+  dateOfBirth: string;
 }

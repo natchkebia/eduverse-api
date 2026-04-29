@@ -40,6 +40,13 @@ export class UsersController {
     return this.usersService.getAllUsers();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/age-analytics')
+  async getAgeAnalytics() {
+    return this.usersService.getAgeAnalytics();
+  }
+
   // ─── Authenticated user: get own profile ───────────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Get('me')

@@ -40,12 +40,26 @@ export class AuthService implements OnModuleInit {
 
   // ─── Register ───────────────────────────────────────────────────────────────
   async register(
-    email: string,
-    password: string,
-    name: string,
-    surname?: string,
-    phone?: string,
+    dto: {
+      email: string;
+      password: string;
+      name: string;
+      surname?: string;
+      phone?: string;
+      dateOfBirth: string;
+    },
   ) {
+    const { email, password, name, surname, phone, dateOfBirth } = dto;
+    const dob = dateOfBirth ? new Date(dateOfBirth) : null;
+    if (!dob || Number.isNaN(dob.getTime())) {
+      throw new BadRequestException('dateOfBirth is required');
+    }
+
+    const age = this.getAgeFromDob(dob);
+    if (age < 13 || age > 80) {
+      throw new BadRequestException('Age must be between 13 and 80');
+    }
+
     const existingUser = await this.prisma.user.findFirst({
       where: { OR: [{ email }, ...(phone ? [{ phone }] : [])] },
     });
@@ -65,6 +79,7 @@ export class AuthService implements OnModuleInit {
         name,
         surname: surname ?? null,
         phone: phone ?? null,
+        dateOfBirth: dob,
         role: Role.STUDENT,
         provider: 'local',
         verified: false,
@@ -75,6 +90,19 @@ export class AuthService implements OnModuleInit {
 
     await this.sendVerificationEmail(email, verificationToken);
     return { success: true };
+  }
+
+  private getAgeFromDob(dob: Date): number {
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const monthDiff = now.getMonth() - dob.getMonth();
+    const dayDiff = now.getDate() - dob.getDate();
+
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--;
+    }
+
+    return age;
   }
 
   private async sendVerificationEmail(email: string, token: string) {

@@ -80,6 +80,7 @@ model User {
   name                String
   surname             String?
   phone               String?  @unique
+  dateOfBirth         DateTime?
   role                Role     @default(STUDENT)
   provider            String?
   avatar              String?
