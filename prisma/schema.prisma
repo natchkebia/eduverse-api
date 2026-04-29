@@ -41,6 +41,7 @@ enum CourseRequestStatus {
 
 enum CourseCategory {
   TECHNOLOGY
+  AI
   DESIGN
   ART
   MARKETING
