@@ -19,6 +19,8 @@ import { Role } from '@prisma/client';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
 import { AdminUpdateRequestDto } from './dto/admin-update-request.dto';
 import { SetListingDto } from './dto/set-listing.dto';
+import { UpdateCourseRequestDto } from './dto/update-course-request.dto';
+import { AuthenticatedRequest } from '../auth/types/authenticated-request.type';
 
 @Controller('course-requests')
 export class CourseRequestsController {
@@ -44,7 +46,10 @@ export class CourseRequestsController {
   // ✅ ახალი დრაფტის შექმნა
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Req() req: any, @Body() dto: CreateCourseRequestDto) {
+  create(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateCourseRequestDto,
+  ) {
     return this.service.createDraft(req.user.id, dto);
   }
 
@@ -52,9 +57,9 @@ export class CourseRequestsController {
   @Patch(':id/details')
   @UseGuards(JwtAuthGuard)
   updateDetails(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() dto: Partial<CreateCourseRequestDto>,
+    @Body() dto: UpdateCourseRequestDto,
   ) {
     return this.service.updateDraft(id, req.user.id, dto);
   }
@@ -63,9 +68,9 @@ export class CourseRequestsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   update(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() dto: Partial<CreateCourseRequestDto>,
+    @Body() dto: UpdateCourseRequestDto,
   ) {
     return this.service.updateDraft(id, req.user.id, dto);
   }
@@ -74,7 +79,7 @@ export class CourseRequestsController {
   @Patch(':id/listing')
   @UseGuards(JwtAuthGuard)
   setListing(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: SetListingDto,
   ) {
@@ -84,14 +89,14 @@ export class CourseRequestsController {
   // ✅ გადახდის სტატუსის მონიშვნა
   @Patch(':id/pay')
   @UseGuards(JwtAuthGuard)
-  pay(@Req() req: any, @Param('id') id: string) {
+  pay(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.service.markAsPaid(id, req.user.id);
   }
 
   // ✅ განსახილველად გაგზავნა
   @Patch(':id/submit')
   @UseGuards(JwtAuthGuard)
-  submit(@Req() req: any, @Param('id') id: string) {
+  submit(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.service.submitForApproval(id, req.user.id, req.user?.role);
   }
 

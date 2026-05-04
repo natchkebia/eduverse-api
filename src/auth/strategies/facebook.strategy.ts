@@ -1,19 +1,20 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Strategy, Profile } from 'passport-facebook';
 
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
   private readonly isEnabled: boolean;
 
-  constructor() {
-    const clientID = process.env.FACEBOOK_CLIENT_ID;
-    const clientSecret = process.env.FACEBOOK_CLIENT_SECRET;
-    const callbackURL =
-      process.env.FACEBOOK_CALLBACK_URL ||
-      'http://localhost:3000/auth/facebook/redirect';
+  constructor(configService: ConfigService) {
+    const clientID = configService.get<string>('FACEBOOK_CLIENT_ID');
+    const clientSecret = configService.get<string>('FACEBOOK_CLIENT_SECRET');
 
     const enabled = Boolean(clientID && clientSecret);
+    const callbackURL = enabled
+      ? configService.getOrThrow<string>('FACEBOOK_CALLBACK_URL')
+      : 'disabled';
     super(
       enabled
         ? {

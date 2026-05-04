@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-google-oauth20';
 
@@ -6,14 +7,14 @@ import { Strategy, Profile } from 'passport-google-oauth20';
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   private readonly isEnabled: boolean;
 
-  constructor() {
-    const clientID = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const callbackURL =
-      process.env.GOOGLE_CALLBACK_URL ||
-      'http://localhost:3000/auth/google/redirect';
+  constructor(configService: ConfigService) {
+    const clientID = configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET');
 
     const enabled = Boolean(clientID && clientSecret);
+    const callbackURL = enabled
+      ? configService.getOrThrow<string>('GOOGLE_CALLBACK_URL')
+      : 'disabled';
 
     super(
       enabled
@@ -58,7 +59,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         profile.displayName ||
         'User',
       surname:
-        profile.name?.familyName || (profile as any)?._json?.family_name || null,
+        profile.name?.familyName ||
+        (profile as any)?._json?.family_name ||
+        null,
       avatar:
         profile.photos?.[0]?.value || (profile as any)?._json?.picture || null,
     };

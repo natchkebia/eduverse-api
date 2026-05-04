@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-reset.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { OAuthRequest } from './types/authenticated-request.type';
 
 @Controller('auth')
 export class AuthController {
@@ -56,11 +57,13 @@ export class AuthController {
 
   @Get('google/redirect')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(@Req() req, @Res() res: Response) {
+  async googleCallback(@Req() req: OAuthRequest, @Res() res: Response) {
     const user = await this.authService.validateOAuthUser(req.user);
     const token = this.authService.createOAuthToken(user);
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    return res.redirect(`${frontendUrl}/ka/oauth?token=${token}`);
+    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+    return res.redirect(
+      `${frontendUrl}/ka/oauth?token=${encodeURIComponent(token)}`,
+    );
   }
 
   // ─── Facebook OAuth ────────────────────────────────────────────────────────
@@ -70,10 +73,12 @@ export class AuthController {
 
   @Get('facebook/redirect')
   @UseGuards(AuthGuard('facebook'))
-  async facebookCallback(@Req() req, @Res() res: Response) {
+  async facebookCallback(@Req() req: OAuthRequest, @Res() res: Response) {
     const user = await this.authService.validateOAuthUser(req.user);
     const token = this.authService.createOAuthToken(user);
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    return res.redirect(`${frontendUrl}/oauth?token=${token}`);
+    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+    return res.redirect(
+      `${frontendUrl}/oauth?token=${encodeURIComponent(token)}`,
+    );
   }
 }

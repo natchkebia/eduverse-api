@@ -3,52 +3,25 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
-  InternalServerErrorException,
-  OnModuleInit,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Role } from '@prisma/client';
 import * as crypto from 'crypto';
-import { Resend } from 'resend';
+import { EmailService } from '../email/email.service';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
-export class AuthService implements OnModuleInit {
-  private resend: Resend;
-  private frontendUrl: string;
-  private emailFrom: string;
-
+export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
-  onModuleInit() {
-    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!resendApiKey) {
-      console.warn('⚠️  RESEND_API_KEY is not set — email sending will fail.');
-      this.resend = null as any;
-    } else {
-      this.resend = new Resend(resendApiKey);
-    }
-    this.frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    this.emailFrom = this.configService.get<string>('EMAIL_FROM', 'noreply@eduverse.dev');
-  }
-
   // ─── Register ───────────────────────────────────────────────────────────────
-  async register(
-    dto: {
-      email: string;
-      password: string;
-      name: string;
-      surname?: string;
-      phone?: string;
-      dateOfBirth: string;
-    },
-  ) {
+  async register(dto: RegisterDto) {
     const { email, password, name, surname, phone, dateOfBirth } = dto;
     const dob = dateOfBirth ? new Date(dateOfBirth) : null;
     if (!dob || Number.isNaN(dob.getTime())) {
@@ -71,6 +44,7 @@ export class AuthService implements OnModuleInit {
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = this.hashToken(verificationToken);
 
     await this.prisma.user.create({
       data: {
@@ -83,13 +57,17 @@ export class AuthService implements OnModuleInit {
         role: Role.STUDENT,
         provider: 'local',
         verified: false,
-        verificationToken,
+        verificationToken: verificationTokenHash,
         verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
-    await this.sendVerificationEmail(email, verificationToken);
+    await this.emailService.sendVerificationEmail(email, verificationToken);
     return { success: true };
+  }
+
+  private hashToken(token: string) {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   private getAgeFromDob(dob: Date): number {
@@ -103,29 +81,6 @@ export class AuthService implements OnModuleInit {
     }
 
     return age;
-  }
-
-  private async sendVerificationEmail(email: string, token: string) {
-    if (!this.resend) {
-      console.warn('⚠️  Skipping verification email because Resend is not configured.');
-      return;
-    }
-    const verifyUrl = `${this.frontendUrl}/verify-email?token=${token}`;
-    try {
-      await this.resend.emails.send({
-        from: this.emailFrom,
-        to: email,
-        subject: 'Confirm your email — EduVerse',
-        html: `
-          <h3>Welcome to EduVerse!</h3>
-          <p>დაადასტურე შენი ელფოსტა რომ გააგრძელო:</p>
-          <a href="${verifyUrl}">${verifyUrl}</a>
-        `,
-      });
-    } catch (err) {
-      console.error('Failed to send verification email:', err);
-      // Do not throw — user is created, email failure is non-fatal in dev
-    }
   }
 
   // ─── Login ──────────────────────────────────────────────────────────────────
@@ -158,9 +113,10 @@ export class AuthService implements OnModuleInit {
 
   // ─── Verify email ───────────────────────────────────────────────────────────
   async verifyEmail(token: string) {
+    const verificationTokenHash = this.hashToken(token);
     const user = await this.prisma.user.findFirst({
       where: {
-        verificationToken: token,
+        verificationToken: verificationTokenHash,
         verificationExpires: { gt: new Date() },
       },
     });
@@ -191,46 +147,26 @@ export class AuthService implements OnModuleInit {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = this.hashToken(token);
 
     await this.prisma.user.update({
       where: { email },
       data: {
-        resetToken: token,
+        resetToken: resetTokenHash,
         resetTokenExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
       },
     });
 
-    await this.sendPasswordResetEmail(email, token);
+    await this.emailService.sendPasswordResetEmail(email, token);
     return { success: true };
-  }
-
-  private async sendPasswordResetEmail(email: string, token: string) {
-    if (!this.resend) {
-      console.warn('⚠️  Skipping password reset email because Resend is not configured.');
-      return;
-    }
-    const resetLink = `${this.frontendUrl}/reset-password?token=${token}`;
-    try {
-      await this.resend.emails.send({
-        from: this.emailFrom,
-        to: email,
-        subject: 'Reset your password — EduVerse',
-        html: `
-          <h3>Password Reset</h3>
-          <p>Click the link below to reset your password. This link expires in 1 hour.</p>
-          <a href="${resetLink}">${resetLink}</a>
-        `,
-      });
-    } catch (err) {
-      console.error('Failed to send password reset email:', err);
-    }
   }
 
   // ─── Reset password ─────────────────────────────────────────────────────────
   async resetPassword(token: string, password: string) {
+    const resetTokenHash = this.hashToken(token);
     const user = await this.prisma.user.findFirst({
       where: {
-        resetToken: token,
+        resetToken: resetTokenHash,
         resetTokenExpires: { gt: new Date() },
       },
     });

@@ -17,11 +17,17 @@ import { CloudinaryService } from '../course-requests/cloudinary.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { ExtendCourseDto } from './dto/extend-course.dto';
+import { RateCourseDto } from './dto/rate-course.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role, CourseType, CourseStatus } from '@prisma/client';
+import {
+  AuthenticatedRequest,
+  OptionalAuthenticatedRequest,
+} from '../auth/types/authenticated-request.type';
 
 @Controller('courses')
 export class CoursesController {
@@ -33,42 +39,52 @@ export class CoursesController {
   // ─── Public endpoints ───────────────────────────────────────────────────────
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   async getCourses(
     @Query('type') type?: CourseType,
     @Query('locale') locale: string = 'ka',
+    @Req() req?: OptionalAuthenticatedRequest,
   ) {
-    return this.coursesService.getPublicCourses(type, locale);
+    return this.coursesService.getPublicCourses(type, locale, req?.user?.id);
   }
 
   @Get('public')
+  @UseGuards(OptionalJwtAuthGuard)
   getPublicCourses(
     @Query('type') type?: CourseType,
     @Query('locale') locale: string = 'ka',
+    @Req() req?: OptionalAuthenticatedRequest,
   ) {
-    return this.coursesService.getPublicCourses(type, locale);
+    return this.coursesService.getPublicCourses(type, locale, req?.user?.id);
   }
 
   @Get('active')
-  async getActiveCourses() {
-    return this.coursesService.getActiveCourses();
+  @UseGuards(OptionalJwtAuthGuard)
+  async getActiveCourses(@Req() req?: OptionalAuthenticatedRequest) {
+    return this.coursesService.getActiveCourses(req?.user?.id);
   }
 
   @Get('search')
+  @UseGuards(OptionalJwtAuthGuard)
   async searchCourses(
     @Query('query') query: string,
     @Query('locale') locale: string = 'ka',
+    @Req() req?: OptionalAuthenticatedRequest,
   ) {
     if (!query || query.trim().length === 0) {
       return [];
     }
-    return this.coursesService.searchCourses(query, locale);
+    return this.coursesService.searchCourses(query, locale, req?.user?.id);
   }
 
   // ─── Authenticated user endpoints ───────────────────────────────────────────
 
   @Get('my')
   @UseGuards(JwtAuthGuard)
-  async getMyCourses(@Req() req: any, @Query('status') status?: CourseStatus) {
+  async getMyCourses(
+    @Req() req: AuthenticatedRequest,
+    @Query('status') status?: CourseStatus,
+  ) {
     return this.coursesService.getMyCourses(req.user.id, status);
   }
 
@@ -98,10 +114,7 @@ export class CoursesController {
   @Patch('admin/:id/edit')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  async adminEditCourse(
-    @Param('id') id: string,
-    @Body() dto: UpdateCourseDto,
-  ) {
+  async adminEditCourse(@Param('id') id: string, @Body() dto: UpdateCourseDto) {
     return this.coursesService.updateCourse(Number(id), dto);
   }
 
@@ -136,15 +149,35 @@ export class CoursesController {
 
   @Post(':id/enroll')
   @UseGuards(JwtAuthGuard)
-  async enrollInCourse(@Param('id') id: string, @Req() req: any) {
+  async enrollInCourse(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.coursesService.enrollInCourse(Number(id), req.user.id);
+  }
+
+  @Post(':id/rating')
+  @UseGuards(JwtAuthGuard)
+  async rateCourse(
+    @Param('id') id: string,
+    @Body() dto: RateCourseDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.coursesService.rateCourse(Number(id), req.user.id, dto.rating);
   }
 
   // ─── Single course lookup ────────────────────────────────────────────────────
 
   @Get('id/:id')
-  async findOneById(@Param('id') id: string) {
-    const course = await this.coursesService.findOneById(Number(id));
+  @UseGuards(OptionalJwtAuthGuard)
+  async findOneById(
+    @Param('id') id: string,
+    @Req() req?: OptionalAuthenticatedRequest,
+  ) {
+    const course = await this.coursesService.findOneById(
+      Number(id),
+      req?.user?.id,
+    );
     if (!course) {
       throw new NotFoundException(`Course not found for id ${id}`);
     }
@@ -152,8 +185,12 @@ export class CoursesController {
   }
 
   @Get('slug/:slug')
-  async findBySlug(@Param('slug') slug: string) {
-    const course = await this.coursesService.findBySlug(slug);
+  @UseGuards(OptionalJwtAuthGuard)
+  async findBySlug(
+    @Param('slug') slug: string,
+    @Req() req?: OptionalAuthenticatedRequest,
+  ) {
+    const course = await this.coursesService.findBySlug(slug, req?.user?.id);
     if (!course) {
       throw new NotFoundException(`Course not found for slug ${slug}`);
     }

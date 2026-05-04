@@ -72,91 +72,91 @@ enum TeachingLanguage {
   EN
 }
 
-
 model User {
-  id                  String   @id @default(uuid())
-  email               String   @unique
-  password            String?
-  name                String
-  surname             String?
-  phone               String?  @unique
-  dateOfBirth         DateTime?
-  role                Role     @default(STUDENT)
-  provider            String?
-  avatar              String?
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String?
+  name        String
+  surname     String?
+  phone       String?   @unique
+  dateOfBirth DateTime?
+  role        Role      @default(STUDENT)
+  provider    String?
+  avatar      String?
 
-  resetToken          String?  @unique
+  resetToken          String?   @unique
   resetTokenExpires   DateTime?
-  verified            Boolean  @default(false)
-  verificationToken   String?  @unique
+  verified            Boolean   @default(false)
+  verificationToken   String?   @unique
   verificationExpires DateTime?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  courseRequests      CourseRequest[]
-  courses             Course[]
-  enrollments         CourseEnrollment[]
+  courseRequests CourseRequest[]
+  courses        Course[]
+  enrollments    CourseEnrollment[]
+  ratings        CourseRating[]
 }
 
 model Course {
-  id               Int            @id @default(autoincrement())
-  slug             String         @unique
-  type             CourseType     @default(COURSE)
+  id               Int              @id @default(autoincrement())
+  slug             String           @unique
+  type             CourseType       @default(COURSE)
   teachingLanguage TeachingLanguage @default(KA)
 
-contentLocale   String?
-  category         CourseCategory @default(OTHER)
-  delivery         CourseDelivery @default(LIVE)
-  format           CourseFormat   @default(ONLINE)
+  contentLocale String?
+  category      CourseCategory @default(OTHER)
+  delivery      CourseDelivery @default(LIVE)
+  format        CourseFormat   @default(ONLINE)
 
-  creatorId        String?
-  creator          User?          @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId String?
+  creator   User?   @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
-  originalPrice    Int
-  discountedPrice  Int?
-  discountPercent  Int?
+  originalPrice   Int
+  discountedPrice Int?
+  discountPercent Int?
 
-  imageUrl         String
+  imageUrl String
 
   // ✅ Workshop/LIVE extra location fields
-  address          String?
-  onlineUrl        String?
+  address   String?
+  onlineUrl String?
 
-  isGeorgia        Boolean        @default(true)
-
+  isGeorgia Boolean @default(true)
 
   // ✅ i18n texts
-  titleKa          String?
-  descriptionKa    String?
-  syllabusKa       String?
-  mentorBioKa      String?
+  titleKa           String?
+  descriptionKa     String?
+  syllabusKa        String?
+  mentorBioKa       String?
   mentorFirstNameKa String?
   mentorLastNameKa  String?
 
-  titleEn          String?
-  descriptionEn    String?
-  syllabusEn       String?
-  mentorBioEn      String?
+  titleEn           String?
+  descriptionEn     String?
+  syllabusEn        String?
+  mentorBioEn       String?
   mentorFirstNameEn String?
   mentorLastNameEn  String?
 
   // Dates
-  startDate        DateTime?
-  endDate          DateTime?
-  date             DateTime? // workshop/masterclass date
+  startDate DateTime?
+  endDate   DateTime?
+  date      DateTime? // workshop/masterclass date
 
-  listingEndsAt    DateTime?
-  maxStudents      Int?
+  listingEndsAt DateTime?
+  maxStudents   Int?
 
-  status           CourseStatus   @default(ACTIVE)
+  status CourseStatus @default(ACTIVE)
 
-  videos           Video[]
-  materials        Material[]
-  enrollments      CourseEnrollment[]
+  videos      Video[]
+  materials   Material[]
+  enrollments CourseEnrollment[]
+  ratings     CourseRating[]
 
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type, status])
   @@index([discountPercent])
@@ -167,14 +167,30 @@ contentLocale   String?
   @@index([isGeorgia])
 }
 
+model CourseRating {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  courseId  Int
+  rating    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([userId])
+}
+
 model CourseEnrollment {
   id        Int      @id @default(autoincrement())
   userId    String
   courseId  Int
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
   @@index([courseId])
@@ -182,67 +198,66 @@ model CourseEnrollment {
 }
 
 model CourseRequest {
-  id               String              @id @default(uuid())
-contentLocale String?
-  creatorId        String
-  creator          User                @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  id            String  @id @default(uuid())
+  contentLocale String?
+  creatorId     String
+  creator       User    @relation(fields: [creatorId], references: [id], onDelete: Restrict)
 
-  type             CourseType          @default(COURSE)
+  type             CourseType       @default(COURSE)
   teachingLanguage TeachingLanguage @default(KA)
 
-  category         CourseCategory?
-  delivery         CourseDelivery?
-  format           CourseFormat?
+  category CourseCategory?
+  delivery CourseDelivery?
+  format   CourseFormat?
 
   // ✅ i18n texts (KA required; EN auto-generated on submit)
-  titleKa          String?
-  descriptionKa    String?
-  syllabusKa       String?
-  mentorBioKa      String?
+  titleKa           String?
+  descriptionKa     String?
+  syllabusKa        String?
+  mentorBioKa       String?
   mentorFirstNameKa String?
   mentorLastNameKa  String?
 
-  titleEn          String?
-  descriptionEn    String?
-  syllabusEn       String?
-  mentorBioEn      String?
+  titleEn           String?
+  descriptionEn     String?
+  syllabusEn        String?
+  mentorBioEn       String?
   mentorFirstNameEn String?
   mentorLastNameEn  String?
 
-  enAutoTranslated Boolean            @default(false)
+  enAutoTranslated Boolean @default(false)
 
-  imageUrl         String?
+  imageUrl String?
 
   // ✅ Pricing
-  originalPrice    Int?
-  discountedPrice  Int?
-  discountPercent  Int?
+  originalPrice   Int?
+  discountedPrice Int?
+  discountPercent Int?
 
   // ✅ Listing payment details
-  listingDays      Int?
-  listingFee       Int?
+  listingDays     Int?
+  listingFee      Int?
   listingStartsAt DateTime?
   listingEndsAt   DateTime?
   maxStudents     Int?
-  
 
   // ✅ Event fields (workshop/masterclass)
-  date             DateTime?
+  date      DateTime?
   // ✅ Online/Onsite specifics
-  address          String?
-  onlineUrl        String?
+  address   String?
+  onlineUrl String?
 
   // ✅ Live course schedule
-  startDate        DateTime?
-  endDate          DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
   requestVideos    CourseRequestVideo[]
   requestMaterials CourseRequestMaterial[]
 
-  status           CourseRequestStatus @default(DRAFT)
+  status CourseRequestStatus @default(DRAFT)
 
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([creatorId])
   @@index([status])
@@ -250,27 +265,27 @@ contentLocale String?
 }
 
 model Video {
-  id        Int     @id @default(autoincrement())
-  url       String
-  courseId  Int
-  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id       Int    @id @default(autoincrement())
+  url      String
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([courseId])
 }
 
 model Material {
-  id        Int     @id @default(autoincrement())
-  link      String
-  courseId  Int
-  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id       Int    @id @default(autoincrement())
+  link     String
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([courseId])
 }
 
 model CourseRequestVideo {
-  id              Int           @id @default(autoincrement())
-  url             String
-  order           Int?
+  id    Int    @id @default(autoincrement())
+  url   String
+  order Int?
 
   courseRequestId String
   courseRequest   CourseRequest @relation(fields: [courseRequestId], references: [id], onDelete: Cascade)
@@ -279,8 +294,8 @@ model CourseRequestVideo {
 }
 
 model CourseRequestMaterial {
-  id              Int           @id @default(autoincrement())
-  link            String
+  id   Int    @id @default(autoincrement())
+  link String
 
   courseRequestId String
   courseRequest   CourseRequest @relation(fields: [courseRequestId], references: [id], onDelete: Cascade)

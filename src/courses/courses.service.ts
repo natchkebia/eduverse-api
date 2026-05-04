@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -21,9 +22,73 @@ import { computePricing } from '../common/pricing/pricing';
 export class CoursesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async withRatingStats<T extends { id: number }>(
+    courses: T[],
+    userId?: string,
+  ) {
+    if (courses.length === 0) return courses;
+    const courseIds = courses.map((course) => course.id);
+
+    const stats = await this.prisma.courseRating.groupBy({
+      by: ['courseId'],
+      where: { courseId: { in: courseIds } },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    const [userRatings, userEnrollments] = userId
+      ? await Promise.all([
+          this.prisma.courseRating.findMany({
+            where: { userId, courseId: { in: courseIds } },
+            select: { courseId: true, rating: true },
+          }),
+          this.prisma.courseEnrollment.findMany({
+            where: { userId, courseId: { in: courseIds } },
+            select: { courseId: true },
+          }),
+        ])
+      : [[], []];
+
+    const statsByCourseId = new Map(
+      stats.map((stat) => [
+        stat.courseId,
+        {
+          averageRating:
+            stat._avg.rating === null
+              ? 0
+              : Math.round(stat._avg.rating * 10) / 10,
+          ratingCount: stat._count.rating,
+        },
+      ]),
+    );
+    const userRatingByCourseId = new Map(
+      userRatings.map((rating) => [rating.courseId, rating.rating]),
+    );
+    const enrolledCourseIds = new Set(
+      userEnrollments.map((enrollment) => enrollment.courseId),
+    );
+
+    return courses.map((course) => ({
+      ...course,
+      averageRating: statsByCourseId.get(course.id)?.averageRating ?? 0,
+      ratingCount: statsByCourseId.get(course.id)?.ratingCount ?? 0,
+      userRating: userRatingByCourseId.get(course.id) ?? null,
+      canRate: enrolledCourseIds.has(course.id),
+    }));
+  }
+
+  private async withRatingStat<T extends { id: number }>(
+    course: T | null,
+    userId?: string,
+  ) {
+    if (!course) return null;
+    const [courseWithStats] = await this.withRatingStats([course], userId);
+    return courseWithStats;
+  }
+
   // ─── USER: get my created courses ──────────────────────────────────────────
   async getMyCourses(userId: string, status?: CourseStatus) {
-    return this.prisma.course.findMany({
+    const courses = await this.prisma.course.findMany({
       where: {
         creatorId: userId,
         ...(status ? { status } : {}),
@@ -31,13 +96,15 @@ export class CoursesService {
       orderBy: { createdAt: 'desc' },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStats(courses, userId);
   }
 
   // ─── Search ─────────────────────────────────────────────────────────────────
-  async searchCourses(query: string, locale: string = 'ka') {
+  async searchCourses(query: string, locale: string = 'ka', userId?: string) {
     const isEn = locale === 'en';
 
-    return this.prisma.course.findMany({
+    const courses = await this.prisma.course.findMany({
       where: {
         ...(isEn
           ? {
@@ -86,13 +153,19 @@ export class CoursesService {
       orderBy: { createdAt: 'desc' },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStats(courses, userId);
   }
 
   // ─── Public courses ─────────────────────────────────────────────────────────
-  async getPublicCourses(type?: CourseType, locale: string = 'ka') {
+  async getPublicCourses(
+    type?: CourseType,
+    locale: string = 'ka',
+    userId?: string,
+  ) {
     const isEn = locale === 'en';
 
-    return this.prisma.course.findMany({
+    const courses = await this.prisma.course.findMany({
       where: {
         status: { in: [CourseStatus.ACTIVE, CourseStatus.EXPIRING] },
         ...(type ? { type } : {}),
@@ -127,41 +200,53 @@ export class CoursesService {
       orderBy: { createdAt: 'desc' },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStats(courses, userId);
   }
 
-  async getActiveCourses() {
-    return this.prisma.course.findMany({
+  async getActiveCourses(userId?: string) {
+    const courses = await this.prisma.course.findMany({
       where: { status: CourseStatus.ACTIVE },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStats(courses, userId);
   }
 
   async getExpiringCourses() {
-    return this.prisma.course.findMany({
+    const courses = await this.prisma.course.findMany({
       where: { status: CourseStatus.EXPIRING },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStats(courses);
   }
 
   async getArchivedCourses() {
-    return this.prisma.course.findMany({
+    const courses = await this.prisma.course.findMany({
       where: { status: { in: [CourseStatus.EXPIRED, CourseStatus.ARCHIVED] } },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStats(courses);
   }
 
-  async findOneById(id: number) {
-    return this.prisma.course.findUnique({
+  async findOneById(id: number, userId?: string) {
+    const course = await this.prisma.course.findUnique({
       where: { id },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStat(course, userId);
   }
 
-  async findBySlug(slug: string) {
-    return this.prisma.course.findUnique({
+  async findBySlug(slug: string, userId?: string) {
+    const course = await this.prisma.course.findUnique({
       where: { slug },
       include: { videos: true, materials: true },
     });
+
+    return this.withRatingStat(course, userId);
   }
 
   // ─── ADMIN: update course (explicit field mapping — no raw spread) ───────────
@@ -198,22 +283,37 @@ export class CoursesService {
         ...(dto.onlineUrl !== undefined && { onlineUrl: dto.onlineUrl }),
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
         ...(dto.titleKa !== undefined && { titleKa: dto.titleKa }),
-        ...(dto.descriptionKa !== undefined && { descriptionKa: dto.descriptionKa }),
+        ...(dto.descriptionKa !== undefined && {
+          descriptionKa: dto.descriptionKa,
+        }),
         ...(dto.syllabusKa !== undefined && { syllabusKa: dto.syllabusKa }),
-        ...(dto.mentorFirstNameKa !== undefined && { mentorFirstNameKa: dto.mentorFirstNameKa }),
-        ...(dto.mentorLastNameKa !== undefined && { mentorLastNameKa: dto.mentorLastNameKa }),
+        ...(dto.mentorFirstNameKa !== undefined && {
+          mentorFirstNameKa: dto.mentorFirstNameKa,
+        }),
+        ...(dto.mentorLastNameKa !== undefined && {
+          mentorLastNameKa: dto.mentorLastNameKa,
+        }),
         ...(dto.mentorBioKa !== undefined && { mentorBioKa: dto.mentorBioKa }),
         ...(dto.titleEn !== undefined && { titleEn: dto.titleEn }),
-        ...(dto.descriptionEn !== undefined && { descriptionEn: dto.descriptionEn }),
+        ...(dto.descriptionEn !== undefined && {
+          descriptionEn: dto.descriptionEn,
+        }),
         ...(dto.syllabusEn !== undefined && { syllabusEn: dto.syllabusEn }),
-        ...(dto.mentorFirstNameEn !== undefined && { mentorFirstNameEn: dto.mentorFirstNameEn }),
-        ...(dto.mentorLastNameEn !== undefined && { mentorLastNameEn: dto.mentorLastNameEn }),
+        ...(dto.mentorFirstNameEn !== undefined && {
+          mentorFirstNameEn: dto.mentorFirstNameEn,
+        }),
+        ...(dto.mentorLastNameEn !== undefined && {
+          mentorLastNameEn: dto.mentorLastNameEn,
+        }),
         ...(dto.mentorBioEn !== undefined && { mentorBioEn: dto.mentorBioEn }),
         ...(dto.startDate && { startDate: new Date(dto.startDate) }),
         ...(dto.endDate && { endDate: new Date(dto.endDate) }),
         ...(dto.date && { date: new Date(dto.date) }),
         ...(dto.listingDays && {
-          listingEndsAt: addDays(course.listingEndsAt ?? new Date(), dto.listingDays),
+          listingEndsAt: addDays(
+            course.listingEndsAt ?? new Date(),
+            dto.listingDays,
+          ),
         }),
         ...(dto.maxStudents !== undefined && { maxStudents: dto.maxStudents }),
         ...pricingData,
@@ -279,7 +379,8 @@ export class CoursesService {
         imageUrl: dto.imageUrl,
         isGeorgia: dto.isGeorgia ?? true,
         address: format === CourseFormat.ONSITE ? (dto.address ?? null) : null,
-        onlineUrl: format === CourseFormat.ONLINE ? (dto.onlineUrl ?? null) : null,
+        onlineUrl:
+          format === CourseFormat.ONLINE ? (dto.onlineUrl ?? null) : null,
         titleKa: dto.titleKa,
         descriptionKa: dto.descriptionKa,
         syllabusKa: dto.syllabusKa ?? null,
@@ -355,7 +456,8 @@ export class CoursesService {
       }
 
       const shouldEnforceCapacity =
-        (course.type === CourseType.COURSE || course.type === CourseType.WORKSHOP) &&
+        (course.type === CourseType.COURSE ||
+          course.type === CourseType.WORKSHOP) &&
         course.maxStudents !== null;
 
       if (shouldEnforceCapacity) {
@@ -383,5 +485,64 @@ export class CoursesService {
 
       return { success: true };
     });
+  }
+
+  async rateCourse(courseId: number, userId: string, rating: number) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    const enrollment = await this.prisma.courseEnrollment.findUnique({
+      where: {
+        userId_courseId: {
+          userId,
+          courseId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!enrollment) {
+      throw new ForbiddenException('You can rate only purchased courses');
+    }
+
+    await this.prisma.courseRating.upsert({
+      where: {
+        userId_courseId: {
+          userId,
+          courseId,
+        },
+      },
+      create: {
+        userId,
+        courseId,
+        rating,
+      },
+      update: {
+        rating,
+      },
+    });
+
+    const stats = await this.prisma.courseRating.aggregate({
+      where: { courseId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    return {
+      success: true,
+      courseId,
+      userRating: rating,
+      averageRating:
+        stats._avg.rating === null
+          ? 0
+          : Math.round(stats._avg.rating * 10) / 10,
+      ratingCount: stats._count.rating,
+    };
   }
 }
