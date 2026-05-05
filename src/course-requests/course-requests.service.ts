@@ -531,10 +531,6 @@ export class CourseRequestsService {
 
     if (updated.contentLocale === 'ka') {
       this.require(
-        !!updated.syllabusKa?.trim(),
-        'Syllabus (KA) is required for course',
-      );
-      this.require(
         !!updated.mentorFirstNameKa?.trim(),
         'Mentor first name (KA) is required',
       );
@@ -542,25 +538,9 @@ export class CourseRequestsService {
         !!updated.mentorLastNameKa?.trim(),
         'Mentor last name (KA) is required',
       );
-
-      const anyContentEn =
-        !!this.trimOrNull(updated.titleEn) ||
-        !!this.trimOrNull(updated.descriptionEn) ||
-        !!this.trimOrNull(updated.syllabusEn);
-
-      if (anyContentEn) {
-        this.require(
-          !!this.trimOrNull(updated.syllabusEn),
-          'syllabusEn is required when English is provided for course',
-        );
-      }
     }
 
     if (updated.contentLocale === 'en') {
-      this.require(
-        !!updated.syllabusEn?.trim(),
-        'Syllabus (EN) is required for course',
-      );
       this.require(
         !!updated.mentorFirstNameEn?.trim(),
         'Mentor first name (EN) is required',
@@ -568,18 +548,6 @@ export class CourseRequestsService {
       this.require(
         !!updated.mentorLastNameEn?.trim(),
         'Mentor last name (EN) is required',
-      );
-    }
-
-    const anyContentEn =
-      !!this.trimOrNull(updated.titleEn) ||
-      !!this.trimOrNull(updated.descriptionEn) ||
-      !!this.trimOrNull(updated.syllabusEn);
-
-    if (anyContentEn) {
-      this.require(
-        !!this.trimOrNull(updated.syllabusEn),
-        'syllabusEn is required when English is provided for course',
       );
     }
 
