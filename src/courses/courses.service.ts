@@ -321,6 +321,41 @@ export class CoursesService {
     });
   }
 
+  async updateOwnMaxStudents(
+    id: number,
+    userId: string,
+    maxStudents: number,
+  ) {
+    if (!Number.isInteger(maxStudents) || maxStudents < 1) {
+      throw new BadRequestException('maxStudents must be at least 1');
+    }
+
+    const course = await this.prisma.course.findUnique({
+      where: { id },
+      select: { id: true, creatorId: true },
+    });
+
+    if (!course) throw new NotFoundException('Course not found');
+    if (course.creatorId !== userId) {
+      throw new ForbiddenException('You can edit only your own course');
+    }
+
+    const currentEnrollments = await this.prisma.courseEnrollment.count({
+      where: { courseId: id },
+    });
+
+    if (maxStudents < currentEnrollments) {
+      throw new BadRequestException(
+        'maxStudents cannot be less than current enrollments',
+      );
+    }
+
+    return this.prisma.course.update({
+      where: { id },
+      data: { maxStudents },
+    });
+  }
+
   // ─── ADMIN: delete course ────────────────────────────────────────────────────
   async deleteCourse(id: number) {
     const course = await this.prisma.course.findUnique({

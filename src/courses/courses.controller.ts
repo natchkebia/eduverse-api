@@ -88,6 +88,20 @@ export class CoursesController {
     return this.coursesService.getMyCourses(req.user.id, status);
   }
 
+  @Patch(':id/max-students')
+  @UseGuards(JwtAuthGuard)
+  async updateOwnMaxStudents(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { maxStudents?: number },
+  ) {
+    return this.coursesService.updateOwnMaxStudents(
+      Number(id),
+      req.user.id,
+      Number(body.maxStudents),
+    );
+  }
+
   // ─── Admin endpoints ────────────────────────────────────────────────────────
 
   @Get('admin/expiring')
