@@ -7,5 +7,6 @@ import { CourseRequestsModule } from '../course-requests/course-requests.module'
   imports: [CourseRequestsModule],
   controllers: [CoursesController],
   providers: [CoursesService],
+  exports: [CoursesService],
 })
 export class CoursesModule {}

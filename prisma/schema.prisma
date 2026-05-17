@@ -10,8 +10,9 @@ datasource db {
 }
 
 enum Role {
-  STUDENT
+  USER
   ADMIN
+  SUPER_ADMIN
 }
 
 enum CourseType {
@@ -80,7 +81,7 @@ model User {
   surname     String?
   phone       String?   @unique
   dateOfBirth DateTime?
-  role        Role      @default(STUDENT)
+  role        Role      @default(USER)
   provider    String?
   avatar      String?
 
@@ -97,6 +98,8 @@ model User {
   courses        Course[]
   enrollments    CourseEnrollment[]
   ratings        CourseRating[]
+  chatConversations ChatConversation[]
+  chatMessages      ChatMessage[]
 }
 
 model Course {
@@ -301,4 +304,36 @@ model CourseRequestMaterial {
   courseRequest   CourseRequest @relation(fields: [courseRequestId], references: [id], onDelete: Cascade)
 
   @@index([courseRequestId])
+}
+
+model ChatConversation {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject       String?
+  lastMessageAt DateTime  @default(now())
+  userReadAt    DateTime?
+  adminReadAt   DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@index([lastMessageAt])
+  @@index([closedAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(uuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body           String
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }

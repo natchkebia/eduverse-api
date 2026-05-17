@@ -12,12 +12,25 @@ function assertSeedAllowed() {
   }
 }
 
-async function upsertAdmin(tx: PrismaClient) {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+async function upsertPrivilegedUser(
+  tx: PrismaClient,
+  options: {
+    emailEnv: string;
+    passwordEnv: string;
+    nameEnv: string;
+    surnameEnv: string;
+    fallbackName: string;
+    role: Role;
+    label: string;
+  },
+) {
+  const adminEmail = process.env[options.emailEnv];
+  const adminPassword = process.env[options.passwordEnv];
 
   if (!adminEmail || !adminPassword) {
-    console.log('ℹ️ ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin seed.');
+    console.log(
+      `ℹ️ ${options.emailEnv} / ${options.passwordEnv} not set — skipping ${options.label} seed.`,
+    );
     return;
   }
 
@@ -25,18 +38,42 @@ async function upsertAdmin(tx: PrismaClient) {
 
   await tx.user.upsert({
     where: { email: adminEmail },
-    update: { role: Role.ADMIN, verified: true, password: hashedPassword },
+    update: { role: options.role, verified: true, password: hashedPassword },
     create: {
       email: adminEmail,
       password: hashedPassword,
-      name: process.env.ADMIN_NAME || 'Admin',
-      surname: process.env.ADMIN_SURNAME || null,
-      role: Role.ADMIN,
+      name: process.env[options.nameEnv] || options.fallbackName,
+      surname: process.env[options.surnameEnv] || null,
+      role: options.role,
       verified: true,
     },
   });
 
-  console.log('✅ Admin upserted');
+  console.log(`✅ ${options.label} upserted`);
+}
+
+async function upsertSuperAdmin(tx: PrismaClient) {
+  return upsertPrivilegedUser(tx, {
+    emailEnv: 'SUPER_ADMIN_EMAIL',
+    passwordEnv: 'SUPER_ADMIN_PASSWORD',
+    nameEnv: 'SUPER_ADMIN_NAME',
+    surnameEnv: 'SUPER_ADMIN_SURNAME',
+    fallbackName: 'Super Admin',
+    role: Role.SUPER_ADMIN,
+    label: 'Super admin',
+  });
+}
+
+async function upsertAdmin(tx: PrismaClient) {
+  return upsertPrivilegedUser(tx, {
+    emailEnv: 'ADMIN_EMAIL',
+    passwordEnv: 'ADMIN_PASSWORD',
+    nameEnv: 'ADMIN_NAME',
+    surnameEnv: 'ADMIN_SURNAME',
+    fallbackName: 'Admin',
+    role: Role.ADMIN,
+    label: 'Admin',
+  });
 }
 
 async function upsertFakeStudent(tx: PrismaClient) {
@@ -52,13 +89,13 @@ async function upsertFakeStudent(tx: PrismaClient) {
 
   await tx.user.upsert({
     where: { email: studentEmail },
-    update: { role: Role.STUDENT, verified: true, password: hashedPassword },
+    update: { role: Role.USER, verified: true, password: hashedPassword },
     create: {
       email: studentEmail,
       password: hashedPassword,
       name: 'Test',
       surname: 'Student',
-      role: Role.STUDENT,
+      role: Role.USER,
       verified: true,
     },
   });
@@ -70,6 +107,7 @@ async function main() {
   assertSeedAllowed();
 
   await prisma.$transaction(async (tx) => {
+    await upsertSuperAdmin(tx as any);
     await upsertAdmin(tx as any);
     await upsertFakeStudent(tx as any);
   });

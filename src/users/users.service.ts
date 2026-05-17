@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -47,6 +48,38 @@ export class UsersService {
 
   async findById(userId: string) {
     return this.prisma.user.findUnique({ where: { id: userId } });
+  }
+
+  async updateMe(
+    userId: string,
+    dto: { name?: string; surname?: string | null; phone?: string | null },
+  ) {
+    const name = dto.name?.trim();
+    if (!name) {
+      throw new BadRequestException('Name is required');
+    }
+
+    const phone = dto.phone?.trim() || null;
+    if (phone) {
+      const existing = await this.prisma.user.findFirst({
+        where: { phone, id: { not: userId } },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('Phone is already used');
+      }
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        surname: dto.surname?.trim() || null,
+        phone,
+      },
+    });
+
+    return this.getMe(userId);
   }
 
   async updatePassword(userId: string, hashedPassword: string) {

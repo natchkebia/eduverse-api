@@ -53,6 +53,12 @@ export class CourseRequestsController {
     return this.service.createDraft(req.user.id, dto);
   }
 
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  my(@Req() req: AuthenticatedRequest) {
+    return this.service.getMyRequests(req.user.id);
+  }
+
   // ✅ FRONT: /details route თუ გაქვს გამოყენებაში — დავტოვოთ, რომ არ გაგიტყდეს
   @Patch(':id/details')
   @UseGuards(JwtAuthGuard)

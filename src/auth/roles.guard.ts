@@ -28,7 +28,9 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User role is missing or not authenticated.');
     }
 
-    const hasRequiredRole = requiredRoles.some((role) => user.role === role);
+    const hasRequiredRole = requiredRoles.some((role) =>
+      this.isAllowed(user.role, role),
+    );
 
     if (!hasRequiredRole) {
       throw new ForbiddenException(
@@ -37,5 +39,13 @@ export class RolesGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private isAllowed(userRole: Role, requiredRole: Role) {
+    if (userRole === Role.SUPER_ADMIN) {
+      return requiredRole === Role.SUPER_ADMIN || requiredRole === Role.ADMIN;
+    }
+
+    return userRole === requiredRole;
   }
 }

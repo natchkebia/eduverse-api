@@ -258,6 +258,14 @@ export class CourseRequestsService {
     });
   }
 
+  async getMyRequests(userId: string) {
+    return this.prisma.courseRequest.findMany({
+      where: { creatorId: userId },
+      orderBy: { createdAt: 'desc' },
+      include: { requestVideos: true, requestMaterials: true },
+    });
+  }
+
   async updateDraft(
     requestId: string,
     userId: string,

@@ -12,10 +12,25 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { IsString, MinLength, MaxLength } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 
 import { UsersService } from './users.service';
+
+class UpdateProfileDto {
+  @IsString()
+  @MaxLength(80)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  surname?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+}
 
 class ChangePasswordDto {
   @IsString()
@@ -52,6 +67,12 @@ export class UsersController {
   @Get('me')
   async getMe(@Req() req) {
     return this.usersService.getMe(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  async updateMe(@Req() req, @Body() body: UpdateProfileDto) {
+    return this.usersService.updateMe(req.user.id, body);
   }
 
   // ─── Authenticated user: change password ───────────────────────────────────

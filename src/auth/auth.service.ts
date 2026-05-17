@@ -54,7 +54,7 @@ export class AuthService {
         surname: surname ?? null,
         phone: phone ?? null,
         dateOfBirth: dob,
-        role: Role.STUDENT,
+        role: Role.USER,
         provider: 'local',
         verified: false,
         verificationToken: verificationTokenHash,
@@ -211,7 +211,7 @@ export class AuthService {
           avatar: oauthUser.avatar ?? null,
           provider: oauthUser.provider,
           verified: true,
-          role: Role.STUDENT,
+          role: Role.USER,
         },
       });
     }
