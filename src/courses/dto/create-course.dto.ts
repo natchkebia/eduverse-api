@@ -47,9 +47,10 @@ export class CreateCourseDto {
   isGeorgia?: boolean;
 
   // ✅ Pricing
+  @IsOptional()
   @IsInt()
   @Min(0)
-  originalPrice: number;
+  originalPrice?: number;
 
   @IsOptional()
   @IsInt()

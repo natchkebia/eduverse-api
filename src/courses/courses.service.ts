@@ -321,11 +321,7 @@ export class CoursesService {
     });
   }
 
-  async updateOwnMaxStudents(
-    id: number,
-    userId: string,
-    maxStudents: number,
-  ) {
+  async updateOwnMaxStudents(id: number, userId: string, maxStudents: number) {
     if (!Number.isInteger(maxStudents) || maxStudents < 1) {
       throw new BadRequestException('maxStudents must be at least 1');
     }
@@ -384,7 +380,10 @@ export class CoursesService {
   async createCourse(dto: CreateCourseDto) {
     let pricing: ReturnType<typeof computePricing>;
     try {
-      pricing = computePricing(dto.originalPrice, dto.discountedPrice ?? null);
+      pricing = computePricing(
+        dto.originalPrice ?? 0,
+        dto.discountedPrice ?? null,
+      );
     } catch (e: any) {
       throw new BadRequestException(e.message);
     }

@@ -45,7 +45,7 @@ export class CourseRequestsService {
   }
 
   private isAdminRole(role?: Role) {
-    return String(role).toUpperCase() === Role.ADMIN;
+    return role === Role.ADMIN || role === Role.SUPER_ADMIN;
   }
 
   private async getOwnedRequestOrThrow(
@@ -496,11 +496,13 @@ export class CourseRequestsService {
         );
       }
       this.require(!!updated.date, 'Date is required for workshop/masterclass');
-      this.require(!!updated.listingDays, 'listingDays required');
-      this.require(
-        !!updated.listingEndsAt,
-        'listingEndsAt missing. Call /listing first',
-      );
+      if (!adminAutoPublish) {
+        this.require(!!updated.listingDays, 'listingDays required');
+        this.require(
+          !!updated.listingEndsAt,
+          'listingEndsAt missing. Call /listing first',
+        );
+      }
       this.require(!!updated.format, 'Format is required');
 
       if (updated.format === CourseFormat.ONSITE) {
@@ -613,14 +615,16 @@ export class CourseRequestsService {
     }
 
     this.require(!!updated.startDate, 'Start date is required for live course');
-    this.require(
-      !!updated.listingDays,
-      'listingDays required for live course listing',
-    );
-    this.require(
-      !!updated.listingEndsAt,
-      'listingEndsAt missing. Call /listing first',
-    );
+    if (!adminAutoPublish) {
+      this.require(
+        !!updated.listingDays,
+        'listingDays required for live course listing',
+      );
+      this.require(
+        !!updated.listingEndsAt,
+        'listingEndsAt missing. Call /listing first',
+      );
+    }
 
     if (adminAutoPublish) {
       await this.prisma.courseRequest.update({
@@ -677,7 +681,7 @@ export class CourseRequestsService {
           ? addDays(request.listingStartsAt ?? new Date(), request.listingDays)
           : null));
 
-    if (!isVideo) {
+    if (!isVideo && request.listingDays) {
       this.require(
         !!listingEndsAt,
         'listingEndsAt is required for LIVE/WORKSHOP',
@@ -824,24 +828,40 @@ export class CourseRequestsService {
     return this.prisma.courseRequest.update({
       where: { id },
       data: {
-        ...(dto.contentLocale !== undefined && { contentLocale: dto.contentLocale }),
+        ...(dto.contentLocale !== undefined && {
+          contentLocale: dto.contentLocale,
+        }),
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.category !== undefined && { category: dto.category }),
         ...(dto.delivery !== undefined && { delivery: dto.delivery }),
         ...(dto.format !== undefined && { format: dto.format }),
-        ...(dto.teachingLanguage !== undefined && { teachingLanguage: dto.teachingLanguage }),
+        ...(dto.teachingLanguage !== undefined && {
+          teachingLanguage: dto.teachingLanguage,
+        }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.titleKa !== undefined && { titleKa: dto.titleKa }),
-        ...(dto.descriptionKa !== undefined && { descriptionKa: dto.descriptionKa }),
+        ...(dto.descriptionKa !== undefined && {
+          descriptionKa: dto.descriptionKa,
+        }),
         ...(dto.syllabusKa !== undefined && { syllabusKa: dto.syllabusKa }),
-        ...(dto.mentorFirstNameKa !== undefined && { mentorFirstNameKa: dto.mentorFirstNameKa }),
-        ...(dto.mentorLastNameKa !== undefined && { mentorLastNameKa: dto.mentorLastNameKa }),
+        ...(dto.mentorFirstNameKa !== undefined && {
+          mentorFirstNameKa: dto.mentorFirstNameKa,
+        }),
+        ...(dto.mentorLastNameKa !== undefined && {
+          mentorLastNameKa: dto.mentorLastNameKa,
+        }),
         ...(dto.mentorBioKa !== undefined && { mentorBioKa: dto.mentorBioKa }),
         ...(dto.titleEn !== undefined && { titleEn: dto.titleEn }),
-        ...(dto.descriptionEn !== undefined && { descriptionEn: dto.descriptionEn }),
+        ...(dto.descriptionEn !== undefined && {
+          descriptionEn: dto.descriptionEn,
+        }),
         ...(dto.syllabusEn !== undefined && { syllabusEn: dto.syllabusEn }),
-        ...(dto.mentorFirstNameEn !== undefined && { mentorFirstNameEn: dto.mentorFirstNameEn }),
-        ...(dto.mentorLastNameEn !== undefined && { mentorLastNameEn: dto.mentorLastNameEn }),
+        ...(dto.mentorFirstNameEn !== undefined && {
+          mentorFirstNameEn: dto.mentorFirstNameEn,
+        }),
+        ...(dto.mentorLastNameEn !== undefined && {
+          mentorLastNameEn: dto.mentorLastNameEn,
+        }),
         ...(dto.mentorBioEn !== undefined && { mentorBioEn: dto.mentorBioEn }),
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
         ...(dto.address !== undefined && { address: dto.address }),
