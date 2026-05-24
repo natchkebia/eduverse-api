@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { CourseRequestStatus, CourseStatus } from '@prisma/client';
+import {
+  CourseListingDecisionStatus,
+  CourseRequestStatus,
+  CourseStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -26,6 +30,25 @@ export class DashboardService {
     });
   }
 
+  async getCourseListingNotices(userId: string) {
+    return this.prisma.course.findMany({
+      where: {
+        creatorId: userId,
+        status: { in: [CourseStatus.EXPIRING, CourseStatus.EXPIRED] },
+      },
+      orderBy: { listingEndsAt: 'asc' },
+      include: {
+        videos: true,
+        materials: true,
+        listingRequests: {
+          where: { creatorId: userId },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+  }
+
   async getCourseRequests(userId: string) {
     return this.prisma.courseRequest.findMany({
       where: { creatorId: userId },
@@ -40,6 +63,8 @@ export class DashboardService {
       activeCreatedCourses,
       courseRequests,
       pendingCourseRequests,
+      courseListingNotices,
+      pendingListingDecisions,
       supportConversations,
     ] = await Promise.all([
       this.prisma.courseEnrollment.count({ where: { userId } }),
@@ -60,6 +85,18 @@ export class DashboardService {
               CourseRequestStatus.PENDING_APPROVAL,
             ],
           },
+        },
+      }),
+      this.prisma.course.count({
+        where: {
+          creatorId: userId,
+          status: { in: [CourseStatus.EXPIRING, CourseStatus.EXPIRED] },
+        },
+      }),
+      this.prisma.courseListingRequest.count({
+        where: {
+          creatorId: userId,
+          status: CourseListingDecisionStatus.PENDING,
         },
       }),
       this.prisma.chatConversation.findMany({
@@ -87,6 +124,8 @@ export class DashboardService {
       activeCreatedCourses,
       courseRequests,
       pendingCourseRequests,
+      courseListingNotices,
+      pendingListingDecisions,
       unreadSupportConversations,
     };
   }

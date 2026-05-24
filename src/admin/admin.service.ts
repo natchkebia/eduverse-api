@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CourseRequestStatus, CourseStatus, Role } from '@prisma/client';
+import {
+  CourseListingDecisionStatus,
+  CourseRequestStatus,
+  CourseStatus,
+  Role,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -28,7 +33,15 @@ export class AdminService {
   getCourses() {
     return this.prisma.course.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { creator: true, videos: true, materials: true },
+      include: {
+        creator: true,
+        videos: true,
+        materials: true,
+        listingRequests: {
+          where: { status: CourseListingDecisionStatus.PENDING },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
   }
 
@@ -47,6 +60,7 @@ export class AdminService {
       activeCourses,
       courseRequests,
       pendingCourseRequests,
+      pendingListingRequests,
       orders,
       chatConversations,
       openChatConversations,
@@ -63,6 +77,9 @@ export class AdminService {
       this.prisma.courseRequest.count({
         where: { status: CourseRequestStatus.PENDING_APPROVAL },
       }),
+      this.prisma.courseListingRequest.count({
+        where: { status: CourseListingDecisionStatus.PENDING },
+      }),
       this.prisma.courseEnrollment.count(),
       this.prisma.chatConversation.count(),
       this.prisma.chatConversation.count({ where: { closedAt: null } }),
@@ -75,6 +92,7 @@ export class AdminService {
       activeCourses,
       courseRequests,
       pendingCourseRequests,
+      pendingListingRequests,
       orders,
       chatConversations,
       openChatConversations,

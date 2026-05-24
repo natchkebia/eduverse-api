@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,6 +18,7 @@ import { CoursesService } from '../courses/courses.service';
 import { AdminUpdateRequestDto } from '../course-requests/dto/admin-update-request.dto';
 import { UpdateCourseDto } from '../courses/dto/update-course.dto';
 import { ExtendCourseDto } from '../courses/dto/extend-course.dto';
+import { AuthenticatedRequest } from '../auth/types/authenticated-request.type';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,6 +55,27 @@ export class AdminController {
     return this.coursesService.updateCourse(Number(id), {
       status: 'ARCHIVED' as any,
     });
+  }
+
+  @Get('course-listing-requests/pending')
+  getPendingListingRequests() {
+    return this.coursesService.getPendingListingRequests();
+  }
+
+  @Post('course-listing-requests/:id/approve')
+  approveListingRequest(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.coursesService.approveListingRequest(id, req.user.id);
+  }
+
+  @Post('course-listing-requests/:id/reject')
+  rejectListingRequest(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.coursesService.rejectListingRequest(id, req.user.id);
   }
 
   @Get('course-requests/pending')

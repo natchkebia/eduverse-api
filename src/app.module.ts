@@ -10,6 +10,8 @@ import { CourseRequestsModule } from './course-requests/course-requests.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
+import { ContactModule } from './contact/contact.module';
+import { SiteReviewsModule } from './site-reviews/site-reviews.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { ChatModule } from './chat/chat.module';
     DashboardModule,
     AdminModule,
     ChatModule,
+    ContactModule,
+    SiteReviewsModule,
   ],
 })
 export class AppModule {}

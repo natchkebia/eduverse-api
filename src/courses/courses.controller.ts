@@ -18,6 +18,7 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { ExtendCourseDto } from './dto/extend-course.dto';
 import { RateCourseDto } from './dto/rate-course.dto';
+import { CourseListingDecisionDto } from './dto/course-listing-decision.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
@@ -86,6 +87,26 @@ export class CoursesController {
     @Query('status') status?: CourseStatus,
   ) {
     return this.coursesService.getMyCourses(req.user.id, status);
+  }
+
+  @Get('my/listing-notices')
+  @UseGuards(JwtAuthGuard)
+  async getMyListingNotices(@Req() req: AuthenticatedRequest) {
+    return this.coursesService.getMyListingNotices(req.user.id);
+  }
+
+  @Post(':id/listing-decision')
+  @UseGuards(JwtAuthGuard)
+  async submitListingDecision(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CourseListingDecisionDto,
+  ) {
+    return this.coursesService.submitListingDecision(
+      Number(id),
+      req.user.id,
+      dto,
+    );
   }
 
   @Patch(':id/max-students')

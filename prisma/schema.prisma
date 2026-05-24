@@ -28,6 +28,17 @@ enum CourseStatus {
   ARCHIVED
 }
 
+enum CourseListingDecision {
+  EXTEND
+  ARCHIVE
+}
+
+enum CourseListingDecisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 /**
  * User-submitted listing lifecycle (pre-publish).
  */
@@ -94,10 +105,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  courseRequests CourseRequest[]
-  courses        Course[]
-  enrollments    CourseEnrollment[]
-  ratings        CourseRating[]
+  courseRequests    CourseRequest[]
+  courses           Course[]
+  enrollments       CourseEnrollment[]
+  ratings           CourseRating[]
+  listingDecisions  CourseListingRequest[] @relation("CourseListingDecisionCreator")
+  listingReviews    CourseListingRequest[] @relation("CourseListingDecisionReviewer")
+  siteReview        SiteReview?
   chatConversations ChatConversation[]
   chatMessages      ChatMessage[]
 }
@@ -153,10 +167,11 @@ model Course {
 
   status CourseStatus @default(ACTIVE)
 
-  videos      Video[]
-  materials   Material[]
-  enrollments CourseEnrollment[]
-  ratings     CourseRating[]
+  videos          Video[]
+  materials       Material[]
+  enrollments     CourseEnrollment[]
+  ratings         CourseRating[]
+  listingRequests CourseListingRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,6 +183,27 @@ model Course {
   @@index([format])
   @@index([delivery])
   @@index([isGeorgia])
+}
+
+model CourseListingRequest {
+  id            String                      @id @default(uuid())
+  courseId      Int
+  course        Course                      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creatorId     String
+  creator       User                        @relation("CourseListingDecisionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  decision      CourseListingDecision
+  extensionDays Int?
+  status        CourseListingDecisionStatus @default(PENDING)
+  reviewedById  String?
+  reviewedBy    User?                       @relation("CourseListingDecisionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+
+  @@index([courseId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([decision])
 }
 
 model CourseRating {
@@ -184,6 +220,21 @@ model CourseRating {
   @@unique([userId, courseId])
   @@index([courseId])
   @@index([userId])
+}
+
+model SiteReview {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String
+  photoUrl  String?
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, createdAt])
+  @@index([rating])
 }
 
 model CourseEnrollment {

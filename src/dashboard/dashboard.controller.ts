@@ -18,6 +18,11 @@ export class DashboardController {
     return this.dashboardService.getCreatedCourses(req.user.id);
   }
 
+  @Get('course-listing-notices')
+  getCourseListingNotices(@Req() req: AuthenticatedRequest) {
+    return this.dashboardService.getCourseListingNotices(req.user.id);
+  }
+
   @Get('course-requests')
   getCourseRequests(@Req() req: AuthenticatedRequest) {
     return this.dashboardService.getCourseRequests(req.user.id);

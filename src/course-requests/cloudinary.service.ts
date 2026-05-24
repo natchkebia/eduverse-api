@@ -17,9 +17,8 @@ export class CloudinaryService {
    * NOTE: api_secret is NEVER included in the response — only the signature
    * (an HMAC of the params) and the public api_key are sent to the client.
    */
-  getUploadSignature() {
+  getUploadSignature(folder = 'eduverse_courses') {
     const timestamp = Math.round(Date.now() / 1000);
-    const folder = 'eduverse_courses';
     const upload_preset = 'eduverse_preset';
 
     const signature = cloudinary.utils.api_sign_request(

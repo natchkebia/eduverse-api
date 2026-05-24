@@ -10,6 +10,8 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { addDays, addHours } from 'date-fns';
 import {
+  CourseListingDecision,
+  CourseListingDecisionStatus,
   CourseStatus,
   CourseType,
   CourseDelivery,
@@ -17,6 +19,7 @@ import {
 } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { computePricing } from '../common/pricing/pricing';
+import { CourseListingDecisionDto } from './dto/course-listing-decision.dto';
 
 @Injectable()
 export class CoursesService {
@@ -98,6 +101,90 @@ export class CoursesService {
     });
 
     return this.withRatingStats(courses, userId);
+  }
+
+  async getMyListingNotices(userId: string) {
+    const courses = await this.prisma.course.findMany({
+      where: {
+        creatorId: userId,
+        status: { in: [CourseStatus.EXPIRING, CourseStatus.EXPIRED] },
+      },
+      orderBy: { listingEndsAt: 'asc' },
+      include: {
+        videos: true,
+        materials: true,
+        listingRequests: {
+          where: { creatorId: userId },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    return this.withRatingStats(courses, userId);
+  }
+
+  async submitListingDecision(
+    courseId: number,
+    userId: string,
+    dto: CourseListingDecisionDto,
+  ) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, creatorId: true, status: true },
+    });
+
+    if (!course) throw new NotFoundException('Course not found');
+    if (course.creatorId !== userId) {
+      throw new ForbiddenException('You can manage only your own course');
+    }
+    if (
+      course.status !== CourseStatus.EXPIRING &&
+      course.status !== CourseStatus.EXPIRED
+    ) {
+      throw new BadRequestException(
+        'Listing decisions are available only for expiring or expired courses',
+      );
+    }
+    if (
+      dto.decision === CourseListingDecision.EXTEND &&
+      (!Number.isInteger(dto.extensionDays) || dto.extensionDays < 1)
+    ) {
+      throw new BadRequestException('extensionDays is required for extension');
+    }
+
+    const pending = await this.prisma.courseListingRequest.findFirst({
+      where: {
+        courseId,
+        creatorId: userId,
+        status: CourseListingDecisionStatus.PENDING,
+      },
+    });
+
+    const data = {
+      decision: dto.decision,
+      extensionDays:
+        dto.decision === CourseListingDecision.EXTEND
+          ? dto.extensionDays
+          : null,
+    };
+
+    if (pending) {
+      return this.prisma.courseListingRequest.update({
+        where: { id: pending.id },
+        data,
+        include: { course: true },
+      });
+    }
+
+    return this.prisma.courseListingRequest.create({
+      data: {
+        courseId,
+        creatorId: userId,
+        ...data,
+      },
+      include: { course: true },
+    });
   }
 
   // ─── Search ─────────────────────────────────────────────────────────────────
@@ -216,7 +303,14 @@ export class CoursesService {
   async getExpiringCourses() {
     const courses = await this.prisma.course.findMany({
       where: { status: CourseStatus.EXPIRING },
-      include: { videos: true, materials: true },
+      include: {
+        videos: true,
+        materials: true,
+        listingRequests: {
+          where: { status: CourseListingDecisionStatus.PENDING },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     return this.withRatingStats(courses);
@@ -452,6 +546,97 @@ export class CoursesService {
         listingEndsAt: addDays(base, duration),
         status: CourseStatus.ACTIVE,
       },
+    });
+  }
+
+  async getPendingListingRequests() {
+    return this.prisma.courseListingRequest.findMany({
+      where: { status: CourseListingDecisionStatus.PENDING },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            surname: true,
+            phone: true,
+          },
+        },
+        course: true,
+      },
+    });
+  }
+
+  async approveListingRequest(id: string, adminId: string) {
+    return this.reviewListingRequest(id, adminId, true);
+  }
+
+  async rejectListingRequest(id: string, adminId: string) {
+    return this.reviewListingRequest(id, adminId, false);
+  }
+
+  private async reviewListingRequest(
+    id: string,
+    adminId: string,
+    approve: boolean,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.courseListingRequest.findUnique({
+        where: { id },
+        include: { course: true },
+      });
+
+      if (!request) throw new NotFoundException('Listing request not found');
+      if (request.status !== CourseListingDecisionStatus.PENDING) {
+        throw new BadRequestException('Listing request is already reviewed');
+      }
+
+      if (!approve) {
+        return tx.courseListingRequest.update({
+          where: { id },
+          data: {
+            status: CourseListingDecisionStatus.REJECTED,
+            reviewedById: adminId,
+            reviewedAt: new Date(),
+          },
+          include: { course: true, creator: true },
+        });
+      }
+
+      if (request.decision === CourseListingDecision.EXTEND) {
+        const extensionDays = request.extensionDays;
+        if (!extensionDays || extensionDays < 1) {
+          throw new BadRequestException('extensionDays is missing');
+        }
+
+        const now = new Date();
+        const currentEnd = request.course.listingEndsAt;
+        const base = currentEnd && currentEnd > now ? currentEnd : now;
+
+        await tx.course.update({
+          where: { id: request.courseId },
+          data: {
+            listingEndsAt: addDays(base, extensionDays),
+            status: CourseStatus.ACTIVE,
+          },
+        });
+      } else {
+        await tx.course.update({
+          where: { id: request.courseId },
+          data: { status: CourseStatus.ARCHIVED },
+        });
+      }
+
+      return tx.courseListingRequest.update({
+        where: { id },
+        data: {
+          status: CourseListingDecisionStatus.APPROVED,
+          reviewedById: adminId,
+          reviewedAt: new Date(),
+        },
+        include: { course: true, creator: true },
+      });
     });
   }
 
