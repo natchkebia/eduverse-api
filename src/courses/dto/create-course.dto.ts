@@ -12,6 +12,9 @@ import {
   Min,
   Max,
   IsUrl,
+  IsEmail,
+  Matches,
+  MinLength,
 } from 'class-validator';
 
 export class CreateCourseDto {
@@ -42,6 +45,19 @@ export class CreateCourseDto {
   @IsOptional()
   @IsUrl()
   onlineUrl?: string; // ONLINE
+
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  @Matches(/^[+0-9().\s-]+$/, {
+    message:
+      'contactPhone must contain only digits, spaces, +, parentheses, dots, or hyphens',
+  })
+  contactPhone?: string | null;
+
+  @IsOptional()
+  @IsEmail()
+  contactEmail?: string | null;
 
   @IsOptional()
   isGeorgia?: boolean;

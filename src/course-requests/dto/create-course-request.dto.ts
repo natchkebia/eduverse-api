@@ -9,6 +9,10 @@ import {
   IsUrl,
   ValidateIf,
   IsIn,
+  IsEmail,
+  IsNotEmpty,
+  Matches,
+  MinLength,
 } from 'class-validator';
 import {
   CourseType,
@@ -123,13 +127,35 @@ export class CreateCourseRequestDto {
   @IsUrl()
   onlineUrl?: string;
 
+  @ValidateIf(
+    (o) =>
+      o.type === CourseType.MASTERCLASS ||
+      (o.contactPhone !== undefined && o.contactPhone !== null),
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(5)
+  @Matches(/^[+0-9().\s-]+$/, {
+    message:
+      'contactPhone must contain only digits, spaces, +, parentheses, dots, or hyphens',
+  })
+  contactPhone?: string | null;
+
+  @IsOptional()
+  @IsEmail()
+  contactEmail?: string | null;
+
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(25)
   @IsUrl({}, { each: true })
   videoUrls?: string[];
 
-  @IsOptional()
+  @ValidateIf(
+    (o) =>
+      o.type === CourseType.MASTERCLASS ||
+      (o.maxStudents !== undefined && o.maxStudents !== null),
+  )
   @IsInt()
   @Min(1)
   maxStudents?: number;

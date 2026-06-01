@@ -140,6 +140,10 @@ model Course {
   address   String?
   onlineUrl String?
 
+  // ✅ Teacher/masterclass contact details
+  contactPhone String?
+  contactEmail String?
+
   isGeorgia Boolean @default(true)
 
   // ✅ i18n texts
@@ -300,6 +304,10 @@ model CourseRequest {
   // ✅ Online/Onsite specifics
   address   String?
   onlineUrl String?
+
+  // ✅ Teacher/masterclass contact details
+  contactPhone String?
+  contactEmail String?
 
   // ✅ Live course schedule
   startDate DateTime?

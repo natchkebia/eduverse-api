@@ -375,6 +375,12 @@ export class CoursesService {
         ...(dto.isGeorgia !== undefined && { isGeorgia: dto.isGeorgia }),
         ...(dto.address !== undefined && { address: dto.address }),
         ...(dto.onlineUrl !== undefined && { onlineUrl: dto.onlineUrl }),
+        ...(dto.contactPhone !== undefined && {
+          contactPhone: dto.contactPhone?.trim() || null,
+        }),
+        ...(dto.contactEmail !== undefined && {
+          contactEmail: dto.contactEmail?.trim() || null,
+        }),
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
         ...(dto.titleKa !== undefined && { titleKa: dto.titleKa }),
         ...(dto.descriptionKa !== undefined && {
@@ -484,11 +490,13 @@ export class CoursesService {
 
     const type = dto.type ?? CourseType.COURSE;
     if (
-      (type === CourseType.COURSE || type === CourseType.WORKSHOP) &&
+      (type === CourseType.COURSE ||
+        type === CourseType.WORKSHOP ||
+        type === CourseType.MASTERCLASS) &&
       !dto.maxStudents
     ) {
       throw new BadRequestException(
-        'maxStudents is required for courses and workshops',
+        'maxStudents is required for courses, workshops, and masterclasses',
       );
     }
     const format = dto.format ?? CourseFormat.ONLINE;
@@ -509,6 +517,8 @@ export class CoursesService {
         address: format === CourseFormat.ONSITE ? (dto.address ?? null) : null,
         onlineUrl:
           format === CourseFormat.ONLINE ? (dto.onlineUrl ?? null) : null,
+        contactPhone: dto.contactPhone?.trim() || null,
+        contactEmail: dto.contactEmail?.trim() || null,
         titleKa: dto.titleKa,
         descriptionKa: dto.descriptionKa,
         syllabusKa: dto.syllabusKa ?? null,

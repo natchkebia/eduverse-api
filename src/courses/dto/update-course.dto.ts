@@ -14,6 +14,9 @@ import {
   Max,
   IsUrl,
   IsBoolean,
+  IsEmail,
+  Matches,
+  MinLength,
 } from 'class-validator';
 
 /**
@@ -48,6 +51,19 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsUrl()
   onlineUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  @Matches(/^[+0-9().\s-]+$/, {
+    message:
+      'contactPhone must contain only digits, spaces, +, parentheses, dots, or hyphens',
+  })
+  contactPhone?: string | null;
+
+  @IsOptional()
+  @IsEmail()
+  contactEmail?: string | null;
 
   @IsOptional()
   @IsBoolean()

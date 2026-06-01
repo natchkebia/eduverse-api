@@ -166,6 +166,8 @@ export class CourseRequestsService {
       delivery === CourseDelivery.LIVE && format === CourseFormat.ONLINE
         ? this.trimOrNull(dto.onlineUrl)
         : null;
+    const contactPhone = this.trimOrNull(dto.contactPhone);
+    const contactEmail = this.trimOrNull(dto.contactEmail);
 
     const titleKa = this.trimOrNull(dto.titleKa);
     const descriptionKa = this.trimOrNull(dto.descriptionKa);
@@ -236,6 +238,8 @@ export class CourseRequestsService {
             : null,
         address,
         onlineUrl,
+        contactPhone,
+        contactEmail,
         startDate:
           dto.type === CourseType.COURSE &&
           delivery === CourseDelivery.LIVE &&
@@ -394,6 +398,14 @@ export class CourseRequestsService {
 
         address,
         onlineUrl,
+        contactPhone:
+          dto.contactPhone !== undefined
+            ? this.trimOrNull(dto.contactPhone)
+            : undefined,
+        contactEmail:
+          dto.contactEmail !== undefined
+            ? this.trimOrNull(dto.contactEmail)
+            : undefined,
         startDate: startDate as any,
         endDate: endDate as any,
         maxStudents: dto.maxStudents ?? undefined,
@@ -489,13 +501,24 @@ export class CourseRequestsService {
     const adminAutoPublish = this.isAdminRole(role);
 
     if (updated.type !== CourseType.COURSE) {
+      if (updated.type === CourseType.MASTERCLASS) {
+        this.require(
+          !!updated.contactPhone?.trim(),
+          'contactPhone is required for masterclass',
+        );
+        this.require(
+          !!updated.maxStudents && updated.maxStudents > 0,
+          'maxStudents is required for masterclass',
+        );
+      }
+
       if (updated.type === CourseType.WORKSHOP) {
         this.require(
           !!updated.maxStudents && updated.maxStudents > 0,
           'maxStudents is required for workshop',
         );
+        this.require(!!updated.date, 'Date is required for workshop');
       }
-      this.require(!!updated.date, 'Date is required for workshop/masterclass');
       if (!adminAutoPublish) {
         this.require(!!updated.listingDays, 'listingDays required');
         this.require(
@@ -520,11 +543,10 @@ export class CourseRequestsService {
       }
 
       if (adminAutoPublish) {
-        await this.prisma.courseRequest.update({
+        return this.prisma.courseRequest.update({
           where: { id: requestId },
           data: { status: CourseRequestStatus.PENDING_APPROVAL },
         });
-        return this.approve(requestId);
       }
 
       return this.prisma.courseRequest.update({
@@ -585,11 +607,10 @@ export class CourseRequestsService {
       };
 
       if (adminAutoPublish) {
-        await this.prisma.courseRequest.update({
+        return this.prisma.courseRequest.update({
           where: { id: requestId },
           data: patchData,
         });
-        return this.approve(requestId);
       }
 
       return this.prisma.courseRequest.update({
@@ -627,14 +648,13 @@ export class CourseRequestsService {
     }
 
     if (adminAutoPublish) {
-      await this.prisma.courseRequest.update({
+      return this.prisma.courseRequest.update({
         where: { id: requestId },
         data: {
           delivery: CourseDelivery.LIVE,
           status: CourseRequestStatus.PENDING_APPROVAL,
         },
       });
-      return this.approve(requestId);
     }
 
     return this.prisma.courseRequest.update({
@@ -733,6 +753,8 @@ export class CourseRequestsService {
             effectiveDelivery === CourseDelivery.LIVE
               ? request.onlineUrl
               : null,
+          contactPhone: request.contactPhone ?? null,
+          contactEmail: request.contactEmail ?? null,
 
           teachingLanguage: request.teachingLanguage ?? TeachingLanguage.KA,
 
@@ -866,6 +888,12 @@ export class CourseRequestsService {
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
         ...(dto.address !== undefined && { address: dto.address }),
         ...(dto.onlineUrl !== undefined && { onlineUrl: dto.onlineUrl }),
+        ...(dto.contactPhone !== undefined && {
+          contactPhone: this.trimOrNull(dto.contactPhone),
+        }),
+        ...(dto.contactEmail !== undefined && {
+          contactEmail: this.trimOrNull(dto.contactEmail),
+        }),
         ...(dto.maxStudents !== undefined && { maxStudents: dto.maxStudents }),
         ...(dto.date && { date: new Date(dto.date) }),
         ...(dto.startDate && { startDate: new Date(dto.startDate) }),
