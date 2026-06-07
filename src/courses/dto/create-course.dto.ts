@@ -43,8 +43,12 @@ export class CreateCourseDto {
   address?: string; // ONSITE
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_protocol: false })
   onlineUrl?: string; // ONLINE
+
+  @IsOptional()
+  @IsUrl({ require_protocol: false })
+  registrationLink?: string;
 
   @IsOptional()
   @IsString()

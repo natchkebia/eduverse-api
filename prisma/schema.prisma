@@ -137,8 +137,9 @@ model Course {
   imageUrl String
 
   // ✅ Workshop/LIVE extra location fields
-  address   String?
-  onlineUrl String?
+  address          String?
+  onlineUrl        String?
+  registrationLink String?
 
   // ✅ Teacher/masterclass contact details
   contactPhone String?
@@ -302,8 +303,9 @@ model CourseRequest {
   // ✅ Event fields (workshop/masterclass)
   date      DateTime?
   // ✅ Online/Onsite specifics
-  address   String?
-  onlineUrl String?
+  address          String?
+  onlineUrl        String?
+  registrationLink String?
 
   // ✅ Teacher/masterclass contact details
   contactPhone String?

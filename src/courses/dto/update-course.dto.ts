@@ -49,8 +49,12 @@ export class UpdateCourseDto {
   address?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_protocol: false })
   onlineUrl?: string;
+
+  @IsOptional()
+  @IsUrl({ require_protocol: false })
+  registrationLink?: string;
 
   @IsOptional()
   @IsString()
