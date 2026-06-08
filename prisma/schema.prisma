@@ -84,6 +84,15 @@ enum TeachingLanguage {
   EN
 }
 
+/**
+ * Teacher monthly subscription lifecycle (manual mark-as-paid, mirrors CourseRequestStatus).
+ */
+enum TeacherSubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+}
+
 model User {
   id          String    @id @default(uuid())
   email       String    @unique
@@ -114,6 +123,24 @@ model User {
   siteReview        SiteReview?
   chatConversations ChatConversation[]
   chatMessages      ChatMessage[]
+  teacherSubscription TeacherSubscription?
+}
+
+model TeacherSubscription {
+  id     String                    @id @default(uuid())
+  userId String                    @unique
+  user   User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status TeacherSubscriptionStatus @default(PENDING_PAYMENT)
+
+  monthlyFee       Int       @default(30)
+  currentPeriodEnd DateTime?
+  lastPaidAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([currentPeriodEnd])
 }
 
 model Course {
@@ -134,7 +161,9 @@ model Course {
   discountedPrice Int?
   discountPercent Int?
 
-  imageUrl String
+  imageUrl       String
+  imagePositionX String?
+  imagePositionY String?
 
   // ✅ Workshop/LIVE extra location fields
   address          String?
@@ -248,6 +277,11 @@ model CourseEnrollment {
   courseId  Int
   createdAt DateTime @default(now())
 
+  // ✅ Platform commission breakdown (20% on course sales)
+  pricePaid       Int @default(0)
+  platformFee     Int @default(0)
+  creatorEarnings Int @default(0)
+
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
@@ -286,7 +320,9 @@ model CourseRequest {
 
   enAutoTranslated Boolean @default(false)
 
-  imageUrl String?
+  imageUrl       String?
+  imagePositionX String?
+  imagePositionY String?
 
   // ✅ Pricing
   originalPrice   Int?

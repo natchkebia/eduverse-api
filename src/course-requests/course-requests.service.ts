@@ -18,13 +18,17 @@ import { addDays } from 'date-fns';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
 import { AdminUpdateRequestDto } from './dto/admin-update-request.dto';
 import { computePricing } from '../common/pricing/pricing';
+import { TeacherSubscriptionsService } from '../teacher-subscriptions/teacher-subscriptions.service';
 
-const LISTING_PRICE_PER_DAY = 5;
+const LISTING_PRICE_PER_DAY = 10;
 const MAX_LISTING_DAYS = 30;
 
 @Injectable()
 export class CourseRequestsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private teacherSubscriptions: TeacherSubscriptionsService,
+  ) {}
 
   private trimOrNull(v?: string | null): string | null {
     if (v === undefined || v === null) return null;
@@ -127,7 +131,16 @@ export class CourseRequestsService {
     }
   }
 
-  async createDraft(userId: string, dto: CreateCourseRequestDto) {
+  async createDraft(userId: string, dto: CreateCourseRequestDto, role?: Role) {
+    if (!this.isAdminRole(role)) {
+      const hasActiveSubscription =
+        await this.teacherSubscriptions.hasActiveSubscription(userId);
+      this.require(
+        hasActiveSubscription,
+        'An active teacher subscription (₾30/month) is required to create listings',
+      );
+    }
+
     this.validateEnglishGroupOnDto(dto);
 
     const delivery =
@@ -417,12 +430,9 @@ export class CourseRequestsService {
   async setListing(requestId: string, userId: string, listingDays: number) {
     const request = await this.getOwnedRequestOrThrow(requestId, userId);
 
-    if (
-      request.type === CourseType.COURSE &&
-      request.delivery === CourseDelivery.VIDEO
-    ) {
+    if (request.type === CourseType.COURSE) {
       throw new BadRequestException(
-        'Listing payment is not required for VIDEO courses',
+        'Listing payment is not required for courses — posting a course is free',
       );
     }
 
@@ -636,32 +646,16 @@ export class CourseRequestsService {
     }
 
     this.require(!!updated.startDate, 'Start date is required for live course');
-    if (!adminAutoPublish) {
-      this.require(
-        !!updated.listingDays,
-        'listingDays required for live course listing',
-      );
-      this.require(
-        !!updated.listingEndsAt,
-        'listingEndsAt missing. Call /listing first',
-      );
-    }
-
-    if (adminAutoPublish) {
-      return this.prisma.courseRequest.update({
-        where: { id: requestId },
-        data: {
-          delivery: CourseDelivery.LIVE,
-          status: CourseRequestStatus.PENDING_APPROVAL,
-        },
-      });
-    }
 
     return this.prisma.courseRequest.update({
       where: { id: requestId },
       data: {
         delivery: CourseDelivery.LIVE,
         status: CourseRequestStatus.PENDING_APPROVAL,
+        listingDays: null,
+        listingFee: null,
+        listingStartsAt: null,
+        listingEndsAt: null,
       },
     });
   }
@@ -694,14 +688,17 @@ export class CourseRequestsService {
       request.type === CourseType.COURSE &&
       effectiveDelivery === CourseDelivery.VIDEO;
 
-    const listingEndsAt = isVideo
+    // Courses are listed for free — no listing expiry to track.
+    const isFreeListing = request.type === CourseType.COURSE;
+
+    const listingEndsAt = isFreeListing
       ? null
       : (request.listingEndsAt ??
         (request.listingDays && request.listingDays > 0
           ? addDays(request.listingStartsAt ?? new Date(), request.listingDays)
           : null));
 
-    if (!isVideo && request.listingDays) {
+    if (!isFreeListing && request.listingDays) {
       this.require(
         !!listingEndsAt,
         'listingEndsAt is required for LIVE/WORKSHOP',

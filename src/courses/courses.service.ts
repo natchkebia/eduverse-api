@@ -21,6 +21,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { computePricing } from '../common/pricing/pricing';
 import { CourseListingDecisionDto } from './dto/course-listing-decision.dto';
 
+const PLATFORM_COMMISSION_PERCENT = 20;
+
 @Injectable()
 export class CoursesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -677,7 +679,13 @@ export class CoursesService {
     return this.prisma.$transaction(async (tx) => {
       const course = await tx.course.findUnique({
         where: { id: courseId },
-        select: { id: true, type: true, maxStudents: true },
+        select: {
+          id: true,
+          type: true,
+          maxStudents: true,
+          originalPrice: true,
+          discountedPrice: true,
+        },
       });
 
       if (!course) {
@@ -701,9 +709,24 @@ export class CoursesService {
         }
       }
 
+      // Platform takes a 20% commission on course purchases (workshops/masterclasses
+      // are monetized via the listing fee instead, not per-enrollment).
+      const price =
+        course.type === CourseType.COURSE
+          ? (course.discountedPrice ?? course.originalPrice ?? 0)
+          : 0;
+      const platformFee = Math.round((price * PLATFORM_COMMISSION_PERCENT) / 100);
+      const creatorEarnings = price - platformFee;
+
       try {
         await tx.courseEnrollment.create({
-          data: { courseId, userId },
+          data: {
+            courseId,
+            userId,
+            pricePaid: price,
+            platformFee,
+            creatorEarnings,
+          },
         });
       } catch (error: any) {
         if (error?.code === 'P2002') {
