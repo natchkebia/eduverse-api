@@ -203,6 +203,7 @@ export class CourseRequestsService {
         creator: { connect: { id: userId } },
         contentLocale: dto.contentLocale,
         type: dto.type,
+        subType: dto.subType ?? null,
         category: dto.category ?? null,
         format: format as any,
         delivery: delivery as any,
@@ -329,6 +330,7 @@ export class CourseRequestsService {
     return this.prisma.courseRequest.update({
       where: { id: requestId },
       data: {
+        subType: dto.subType ?? undefined,
         category: dto.category ?? undefined,
         delivery: (nextDelivery as any) ?? undefined,
         contentLocale: dto.contentLocale ?? undefined,
@@ -707,6 +709,7 @@ export class CourseRequestsService {
         data: {
           slug,
           type: request.type,
+          subType: request.subType ?? null,
           creatorId: request.creatorId,
 
           contentLocale: request.contentLocale ?? null,

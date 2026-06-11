@@ -147,6 +147,7 @@ model Course {
   id               Int              @id @default(autoincrement())
   slug             String           @unique
   type             CourseType       @default(COURSE)
+  subType          String?
   teachingLanguage TeachingLanguage @default(KA)
 
   contentLocale String?
@@ -297,6 +298,7 @@ model CourseRequest {
   creator       User    @relation(fields: [creatorId], references: [id], onDelete: Restrict)
 
   type             CourseType       @default(COURSE)
+  subType          String?
   teachingLanguage TeachingLanguage @default(KA)
 
   category CourseCategory?

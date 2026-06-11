@@ -30,6 +30,21 @@ export class CreateCourseRequestDto {
   type: CourseType;
 
   @IsOptional()
+  @IsIn([
+    'course',
+    'study-program',
+    'certificate-program',
+    'workshop',
+    'masterclass',
+    'seminar',
+    'webinar',
+    'practical-session',
+    'teacher',
+    'mentor',
+  ])
+  subType?: string;
+
+  @IsOptional()
   @IsEnum(CourseCategory)
   category?: CourseCategory;
 
