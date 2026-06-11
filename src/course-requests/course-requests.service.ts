@@ -18,17 +18,13 @@ import { addDays } from 'date-fns';
 import { CreateCourseRequestDto } from './dto/create-course-request.dto';
 import { AdminUpdateRequestDto } from './dto/admin-update-request.dto';
 import { computePricing } from '../common/pricing/pricing';
-import { TeacherSubscriptionsService } from '../teacher-subscriptions/teacher-subscriptions.service';
 
 const LISTING_PRICE_PER_DAY = 10;
 const MAX_LISTING_DAYS = 30;
 
 @Injectable()
 export class CourseRequestsService {
-  constructor(
-    private prisma: PrismaService,
-    private teacherSubscriptions: TeacherSubscriptionsService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   private trimOrNull(v?: string | null): string | null {
     if (v === undefined || v === null) return null;
@@ -131,16 +127,7 @@ export class CourseRequestsService {
     }
   }
 
-  async createDraft(userId: string, dto: CreateCourseRequestDto, role?: Role) {
-    if (!this.isAdminRole(role)) {
-      const hasActiveSubscription =
-        await this.teacherSubscriptions.hasActiveSubscription(userId);
-      this.require(
-        hasActiveSubscription,
-        'An active teacher subscription (₾30/month) is required to create listings',
-      );
-    }
-
+  async createDraft(userId: string, dto: CreateCourseRequestDto) {
     this.validateEnglishGroupOnDto(dto);
 
     const delivery =
@@ -545,13 +532,6 @@ export class CourseRequestsService {
         );
       }
 
-      if (updated.format === CourseFormat.ONLINE) {
-        this.require(
-          !!updated.onlineUrl?.trim(),
-          'Online link is required for online',
-        );
-      }
-
       if (adminAutoPublish) {
         return this.prisma.courseRequest.update({
           where: { id: requestId },
@@ -635,13 +615,6 @@ export class CourseRequestsService {
       this.require(
         !!updated.address?.trim(),
         'Address is required for on-site',
-      );
-    }
-
-    if (updated.format === CourseFormat.ONLINE) {
-      this.require(
-        !!updated.onlineUrl?.trim(),
-        'Online link is required for online',
       );
     }
 

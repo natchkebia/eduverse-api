@@ -50,7 +50,7 @@ export class CourseRequestsController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateCourseRequestDto,
   ) {
-    return this.service.createDraft(req.user.id, dto, req.user?.role);
+    return this.service.createDraft(req.user.id, dto);
   }
 
   @Get('my')
