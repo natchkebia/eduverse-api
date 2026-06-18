@@ -67,13 +67,13 @@ export class SiteReviewsService {
         rating: dto.rating,
         comment,
         photoUrl: dto.photoUrl ?? null,
-        published: true,
+        published: false,
       },
       update: {
         rating: dto.rating,
         comment,
         photoUrl: dto.photoUrl ?? null,
-        published: true,
+        published: false,
       },
       include: {
         user: {
