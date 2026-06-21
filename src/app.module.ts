@@ -13,6 +13,7 @@ import { ChatModule } from './chat/chat.module';
 import { ContactModule } from './contact/contact.module';
 import { SiteReviewsModule } from './site-reviews/site-reviews.module';
 import { TeacherSubscriptionsModule } from './teacher-subscriptions/teacher-subscriptions.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { TeacherSubscriptionsModule } from './teacher-subscriptions/teacher-subs
     ContactModule,
     SiteReviewsModule,
     TeacherSubscriptionsModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
